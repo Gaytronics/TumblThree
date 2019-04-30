@@ -3,7 +3,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
+using TumblThree.Domain.Models.Files;
 
 namespace TumblThree.Applications.Services
 {
@@ -26,8 +27,8 @@ namespace TumblThree.Applications.Services
         {
             lock (lockObjectProgress)
             {
-                blog.DownloadedImages++; 
-                blog.Progress = (int)((double)blog.DownloadedImages/ (double)blog.TotalCount * 100);
+                blog.DownloadedImages++;
+                blog.Progress = (int)(blog.DownloadedImages / (double)blog.TotalCount * 100);
             }
         }
 
@@ -40,7 +41,6 @@ namespace TumblThree.Applications.Services
                 postCounter++;
                 property.SetValue(blog, postCounter, null);
             }
-
         }
 
         public void UpdateBlogDB(string fileName)
@@ -54,10 +54,8 @@ namespace TumblThree.Applications.Services
         public bool CreateDataFolder()
         {
             if (string.IsNullOrEmpty(blog.Name))
-            {
                 return false;
-            }
-
+            
             string blogPath = blog.DownloadLocation();
 
             if (!Directory.Exists(blogPath))
@@ -65,6 +63,7 @@ namespace TumblThree.Applications.Services
                 Directory.CreateDirectory(blogPath);
                 return true;
             }
+
             return true;
         }
 
@@ -77,17 +76,14 @@ namespace TumblThree.Applications.Services
                 Monitor.Exit(lockObjectDb);
                 return true;
             }
+
             Monitor.Exit(lockObjectDb);
             return false;
         }
 
         public virtual bool CheckIfBlogShouldCheckDirectory(string url)
         {
-            if (blog.CheckDirectoryForFiles)
-            {
-                return CheckIfFileExistsInDirectory(url);
-            }
-            return false;
+            return blog.CheckDirectoryForFiles && CheckIfFileExistsInDirectory(url);
         }
 
         public virtual bool CheckIfFileExistsInDirectory(string url)
@@ -100,6 +96,7 @@ namespace TumblThree.Applications.Services
                 Monitor.Exit(lockObjectDirectory);
                 return true;
             }
+
             Monitor.Exit(lockObjectDirectory);
             return false;
         }

@@ -9,6 +9,7 @@ using System.Text;
 using System.Waf.Applications;
 using System.Waf.Applications.Services;
 using System.Waf.Foundation;
+using System.Xml;
 
 using TumblThree.Applications.Data;
 using TumblThree.Applications.Properties;
@@ -16,6 +17,7 @@ using TumblThree.Applications.Services;
 using TumblThree.Applications.ViewModels;
 using TumblThree.Domain;
 using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 using TumblThree.Domain.Queue;
 
 namespace TumblThree.Applications.Controllers
@@ -23,19 +25,23 @@ namespace TumblThree.Applications.Controllers
     [Export]
     internal class QueueController
     {
-        private readonly DelegateCommand clearQueueCommand;
         private readonly ICrawlerService crawlerService;
         private readonly IDetailsService detailsService;
         private readonly IFileDialogService fileDialogService;
         private readonly IManagerService managerService;
+        private readonly IShellService shellService;
+
+        private readonly DelegateCommand clearQueueCommand;
         private readonly DelegateCommand openQueueCommand;
-        private readonly FileType openQueuelistFileType;
-        private readonly Lazy<QueueViewModel> queueViewModel;
         private readonly DelegateCommand removeSelectedCommand;
         private readonly DelegateCommand saveQueueCommand;
-        private readonly FileType saveQueuelistFileType;
-        private readonly IShellService shellService;
         private readonly DelegateCommand showBlogDetailsCommand;
+
+        private readonly Lazy<QueueViewModel> queueViewModel;
+
+        private readonly FileType saveQueuelistFileType;
+
+        private readonly FileType openQueuelistFileType;
 
         [ImportingConstructor]
         public QueueController(IFileDialogService fileDialogService, IShellService shellService, IDetailsService detailsService,
@@ -60,10 +66,7 @@ namespace TumblThree.Applications.Controllers
 
         public QueueManager QueueManager { get; set; }
 
-        private QueueViewModel QueueViewModel
-        {
-            get { return queueViewModel.Value; }
-        }
+        private QueueViewModel QueueViewModel => queueViewModel.Value;
 
         public void Initialize()
         {
@@ -88,20 +91,16 @@ namespace TumblThree.Applications.Controllers
 
         public void LoadQueue()
         {
+            ClearList();
             IReadOnlyList<string> blogNamesToLoad = QueueSettings.Names;
             IReadOnlyList<BlogTypes> blogTypesToLoad = QueueSettings.Types;
             InsertFilesCore(0, blogNamesToLoad, blogTypesToLoad);
         }
 
-        public void Shutdown()
-        {
-            QueueSettings.ReplaceAll(QueueManager.Items.Select(x => x.Blog.Name), QueueManager.Items.Select(x => x.Blog.BlogType));
-        }
+        public void Shutdown() => QueueSettings.ReplaceAll(QueueManager.Items.Select(x => x.Blog.Name),
+            QueueManager.Items.Select(x => x.Blog.BlogType));
 
-        private bool CanRemoveSelected()
-        {
-            return QueueViewModel.SelectedQueueItem != null;
-        }
+        private bool CanRemoveSelected() => QueueViewModel.SelectedQueueItem != null;
 
         private void RemoveSelected()
         {
@@ -121,10 +120,8 @@ namespace TumblThree.Applications.Controllers
             shellService.ShowDetailsView();
         }
 
-        private void InsertBlogFiles(int index, IEnumerable<IBlog> blogFiles)
-        {
+        private void InsertBlogFiles(int index, IEnumerable<IBlog> blogFiles) =>
             QueueManager.InsertItems(index, blogFiles.Select(x => new QueueListItem(x)));
-        }
 
         private void OpenList()
         {
@@ -133,6 +130,7 @@ namespace TumblThree.Applications.Controllers
             {
                 return;
             }
+
             OpenListCore(result.FileName);
         }
 
@@ -155,14 +153,17 @@ namespace TumblThree.Applications.Controllers
                 return;
             }
 
-            InsertFilesCore(QueueManager.Items.Count(), queueList.Names.ToArray(), queueList.Types.ToArray());
+            InsertFilesCore(QueueManager.Items.Count, queueList.Names.ToArray(), queueList.Types.ToArray());
         }
 
         private void InsertFilesCore(int index, IEnumerable<string> names, IEnumerable<BlogTypes> blogTypes)
         {
             try
             {
-                InsertBlogFiles(index, names.Zip(blogTypes, Tuple.Create).Select(x => managerService.BlogFiles.First(blogs => blogs.Name.Equals(x.Item1) && blogs.BlogType.Equals(x.Item2))));
+                InsertBlogFiles(index,
+                    names.Zip(blogTypes, Tuple.Create).Select(x =>
+                        managerService.BlogFiles.First(blogs =>
+                            blogs.Name.Equals(x.Item1) && blogs.BlogType.Equals(x.Item2))));
             }
             catch (Exception ex)
             {
@@ -192,7 +193,7 @@ namespace TumblThree.Applications.Controllers
                     var stream = new FileStream(Path.Combine(targetFolder, name) + ".que", FileMode.Create, FileAccess.Write,
                         FileShare.None))
                 {
-                    using (var writer = JsonReaderWriterFactory.CreateJsonWriter(
+                    using (XmlDictionaryWriter writer = JsonReaderWriterFactory.CreateJsonWriter(
                         stream, Encoding.UTF8, true, true, "  "))
                     {
                         var serializer = new DataContractJsonSerializer(typeof(QueueSettings));
@@ -208,10 +209,7 @@ namespace TumblThree.Applications.Controllers
             }
         }
 
-        private void ClearList()
-        {
-            QueueManager.ClearItems();
-        }
+        private void ClearList() => QueueManager.ClearItems();
 
         private void QueueViewModelPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
@@ -221,9 +219,6 @@ namespace TumblThree.Applications.Controllers
             }
         }
 
-        private void UpdateCommands()
-        {
-            removeSelectedCommand.RaiseCanExecuteChanged();
-        }
+        private void UpdateCommands() => removeSelectedCommand.RaiseCanExecuteChanged();
     }
 }

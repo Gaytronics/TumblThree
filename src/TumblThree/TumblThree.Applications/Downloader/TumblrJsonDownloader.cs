@@ -12,7 +12,7 @@ using TumblThree.Applications.DataModels.TumblrCrawlerData;
 using TumblThree.Applications.Properties;
 using TumblThree.Applications.Services;
 using TumblThree.Domain;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 
 namespace TumblThree.Applications.Downloader
 {
@@ -25,7 +25,8 @@ namespace TumblThree.Applications.Downloader
         protected readonly CancellationToken ct;
         protected readonly PauseToken pt;
 
-        public TumblrJsonDownloader(IShellService shellService, CancellationToken ct, PauseToken pt, IPostQueue<TumblrCrawlerData<T>> jsonQueue, ICrawlerService crawlerService, IBlog blog)
+        public TumblrJsonDownloader(IShellService shellService, CancellationToken ct, PauseToken pt,
+            IPostQueue<TumblrCrawlerData<T>> jsonQueue, ICrawlerService crawlerService, IBlog blog)
         {
             this.shellService = shellService;
             this.crawlerService = crawlerService;
@@ -43,32 +44,36 @@ namespace TumblThree.Applications.Downloader
             foreach (TumblrCrawlerData<T> downloadItem in jsonQueue.GetConsumingEnumerable())
             {
                 if (ct.IsCancellationRequested)
-                {
                     break;
-                }
+                
                 if (pt.IsPaused)
-                {
                     pt.WaitWhilePausedWithResponseAsyc().Wait();
-                }
-
-                trackedTasks.Add(new Func<Task>(async () =>
-                {
-                    try { await DownloadTextPost(downloadItem); }
-                    catch { }
-                })());
+                
+                trackedTasks.Add(DownloadPostAsync(downloadItem));
             }
-            try { await Task.WhenAll(trackedTasks); }
-            catch { }
+
+            await Task.WhenAll(trackedTasks);
         }
 
-        private async Task DownloadTextPost(TumblrCrawlerData<T> crawlerData)
+        private async Task DownloadPostAsync(TumblrCrawlerData<T> downloadItem)
+        {
+            try
+            {
+                await DownloadTextPostAsync(downloadItem);
+            }
+            catch
+            {
+            }
+        }
+
+        private async Task DownloadTextPostAsync(TumblrCrawlerData<T> crawlerData)
         {
             string blogDownloadLocation = blog.DownloadLocation();
             string fileLocation = FileLocation(blogDownloadLocation, crawlerData.Filename);
-            await AppendToTextFile(fileLocation, crawlerData.Data);
+            await AppendToTextFileAsync(fileLocation, crawlerData.Data);
         }
 
-        private async Task AppendToTextFile(string fileLocation, T data)
+        private async Task AppendToTextFileAsync(string fileLocation, T data)
         {
             try
             {

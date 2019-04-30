@@ -12,6 +12,8 @@ namespace TumblThree.Applications.Services
 {
     public interface ICrawlerService : INotifyPropertyChanged
     {
+        ICommand ImportBlogsCommand { get; set; }
+
         ICommand AddBlogCommand { get; set; }
 
         ICommand RemoveBlogCommand { get; set; }
@@ -23,6 +25,8 @@ namespace TumblThree.Applications.Services
         ICommand LoadLibraryCommand { get; set; }
 
         ICommand LoadAllDatabasesCommand { get; set; }
+
+        ICommand CheckIfDatabasesCompleteCommand { get; set; }
 
         ICommand RemoveBlogFromQueueCommand { get; set; }
 
@@ -51,6 +55,8 @@ namespace TumblThree.Applications.Services
         RateLimiter Timeconstraint { get; set; }
 
         Timer Timer { get; set; }
+
+        TaskCompletionSource<bool> LibraryLoaded { get; set; }
 
         TaskCompletionSource<bool> DatabasesLoaded { get; set; }
 

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 
-namespace TumblThree.Domain.Models
+namespace TumblThree.Domain.Models.Blogs
 {
     public interface IBlog : INotifyPropertyChanged
     {
@@ -101,6 +101,10 @@ namespace TumblThree.Domain.Models
         MetadataType MetadataFormat { get; set; }
 
         bool DumpCrawlerData { get; set; }
+
+        bool RegExPhotos { get; set; }
+
+        bool RegExVideos { get; set; }
 
         string FileDownloadLocation { get; set; }
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -13,7 +12,7 @@ using TumblThree.Applications.DataModels.TumblrCrawlerData;
 using TumblThree.Applications.Properties;
 using TumblThree.Applications.Services;
 using TumblThree.Domain;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 
 namespace TumblThree.Applications.Downloader
 {
@@ -26,7 +25,8 @@ namespace TumblThree.Applications.Downloader
         protected readonly CancellationToken ct;
         protected readonly PauseToken pt;
 
-        public TumblrXmlDownloader(IShellService shellService, CancellationToken ct, PauseToken pt, IPostQueue<TumblrCrawlerData<XDocument>> xmlQueue, ICrawlerService crawlerService, IBlog blog)
+        public TumblrXmlDownloader(IShellService shellService, CancellationToken ct, PauseToken pt,
+            IPostQueue<TumblrCrawlerData<XDocument>> xmlQueue, ICrawlerService crawlerService, IBlog blog)
         {
             this.shellService = shellService;
             this.crawlerService = crawlerService;
@@ -47,30 +47,37 @@ namespace TumblThree.Applications.Downloader
                 {
                     break;
                 }
+
                 if (pt.IsPaused)
                 {
                     pt.WaitWhilePausedWithResponseAsyc().Wait();
                 }
 
-                trackedTasks.Add(new Func<Task>(async () =>
-                {
-                    try { await DownloadTextPost(downloadItem); }
-                    catch { }
-                })());
+                trackedTasks.Add(DownloadPostAsync(downloadItem));
             }
-            try { await Task.WhenAll(trackedTasks); }
-            catch { }
+
+            await Task.WhenAll(trackedTasks);
         }
 
+        private async Task DownloadPostAsync(TumblrCrawlerData<XDocument> downloadItem)
+        {
+            try
+            {
+                await DownloadTextPostAsync(downloadItem);
+            }
+            catch
+            {
+            }
+        }
 
-        private async Task DownloadTextPost(TumblrCrawlerData<XDocument> crawlerData)
+        private async Task DownloadTextPostAsync(TumblrCrawlerData<XDocument> crawlerData)
         {
             string blogDownloadLocation = blog.DownloadLocation();
             string fileLocation = FileLocation(blogDownloadLocation, crawlerData.Filename);
-            await AppendToTextFile(fileLocation, crawlerData.Data);
+            await AppendToTextFileAsync(fileLocation, crawlerData.Data);
         }
 
-        private async Task AppendToTextFile(string fileLocation, XContainer data)
+        private async Task AppendToTextFileAsync(string fileLocation, XContainer data)
         {
             try
             {
@@ -90,16 +97,18 @@ namespace TumblThree.Applications.Downloader
             }
         }
 
-        static string PrettyXml(XContainer xml)
+        private static string PrettyXml(XContainer xml)
         {
             var stringBuilder = new StringBuilder();
 
-            var settings = new XmlWriterSettings();
-            settings.OmitXmlDeclaration = true;
-            settings.Indent = true;
-            settings.NewLineOnAttributes = true;
+            var settings = new XmlWriterSettings
+            {
+                OmitXmlDeclaration = true,
+                Indent = true,
+                NewLineOnAttributes = true
+            };
 
-            using (var xmlWriter = XmlWriter.Create(stringBuilder, settings))
+            using (XmlWriter xmlWriter = XmlWriter.Create(stringBuilder, settings))
             {
                 xml.WriteTo(xmlWriter);
             }

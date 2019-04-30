@@ -835,6 +835,15 @@ namespace TumblThree.Presentation.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Import Blog List.
+        /// </summary>
+        public static string ImportFromBlogListFile {
+            get {
+                return ResourceManager.GetString("ImportFromBlogListFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to 32 Bit.
         /// </summary>
         public static string Info32Bit {
@@ -1150,6 +1159,15 @@ namespace TumblThree.Presentation.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Progress update interval (ms).
+        /// </summary>
+        public static string ProgressUpdateInterval {
+            get {
+                return ResourceManager.GetString("ProgressUpdateInterval", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to HTTP Proxy:.
         /// </summary>
         public static string ProxyHost {
@@ -1200,6 +1218,24 @@ namespace TumblThree.Presentation.Properties {
         public static string Rating {
             get {
                 return ResourceManager.GetString("Rating", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search for image patterns.
+        /// </summary>
+        public static string RegExPhotos {
+            get {
+                return ResourceManager.GetString("RegExPhotos", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search for video patterns.
+        /// </summary>
+        public static string RegExVideos {
+            get {
+                return ResourceManager.GetString("RegExVideos", resourceCulture);
             }
         }
         
@@ -2128,6 +2164,25 @@ namespace TumblThree.Presentation.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Refresh rate of the progress information.
+        /// </summary>
+        public static string ToolTipProgressUpdate {
+            get {
+                return ResourceManager.GetString("ToolTipProgressUpdate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Refresh rate of the progress information in the queue panel.
+        ///This value determines the information refresh rate for each individual queued blog..
+        /// </summary>
+        public static string ToolTipProgressUpdateDescription {
+            get {
+                return ResourceManager.GetString("ToolTipProgressUpdateDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Credentials for non-anonymous proxy server.
         /// </summary>
         public static string ToolTipProxyPassword {
@@ -2142,6 +2197,46 @@ namespace TumblThree.Presentation.Properties {
         public static string ToolTipProxyPasswordDescription {
             get {
                 return ResourceManager.GetString("ToolTipProxyPasswordDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search for images in the crawl data.
+        /// </summary>
+        public static string ToolTipRegExPhotos {
+            get {
+                return ResourceManager.GetString("ToolTipRegExPhotos", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Uses regular expressions to search for images in everything TumblThree scans.
+        ///This might add plenty of duplicate or random image urls to the queue, but could potentially
+        ///gather images from websites that are currently not supported by a specifically written parser..
+        /// </summary>
+        public static string ToolTipRegExPhotosDescription {
+            get {
+                return ResourceManager.GetString("ToolTipRegExPhotosDescription", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Search for videos in the crawl data.
+        /// </summary>
+        public static string ToolTipRegExVideos {
+            get {
+                return ResourceManager.GetString("ToolTipRegExVideos", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Uses regular expressions to search for videos in everything TumblThree scans.
+        ///This might add plenty of duplicate or random video urls to the queue, but could potentially
+        ///gather videos from websites that are currently not supported by a specifically written parser..
+        /// </summary>
+        public static string ToolTipRegExVideosDescription {
+            get {
+                return ResourceManager.GetString("ToolTipRegExVideosDescription", resourceCulture);
             }
         }
         
@@ -2173,7 +2268,7 @@ namespace TumblThree.Presentation.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Sets the number connections used for scanning.
+        ///   Looks up a localized string similar to Sets the number of connections used for scanning.
         ///Since the data is usually small, you should leave this high.
         ///Note: This setting has no impact if the Limit Tumblr Api Connections setting is turned on..
         /// </summary>
@@ -2284,7 +2379,7 @@ namespace TumblThree.Presentation.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The vt.tumblr.com host regularly closes connections if the number is too high..
+        ///   Looks up a localized string similar to The v*.tumblr.com hosts regularly close connections if the number is too high..
         /// </summary>
         public static string ToolTipVideoConnectionsDescription {
             get {

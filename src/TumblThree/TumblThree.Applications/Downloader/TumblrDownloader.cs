@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 using TumblThree.Applications.DataModels;
 using TumblThree.Applications.DataModels.TumblrPosts;
 using TumblThree.Applications.Services;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
+using TumblThree.Domain.Models.Files;
 
 namespace TumblThree.Applications.Downloader
 {
@@ -17,31 +18,31 @@ namespace TumblThree.Applications.Downloader
         protected List<string> tags = new List<string>();
         protected int numberOfPagesCrawled = 0;
 
-        public TumblrDownloader(IShellService shellService, IManagerService managerService, CancellationToken ct, PauseToken pt, IProgress<DownloadProgress> progress, IPostQueue<TumblrPost> postQueue, FileDownloader fileDownloader, ICrawlerService crawlerService, IBlog blog, IFiles files)
+        public TumblrDownloader(IShellService shellService, IManagerService managerService, CancellationToken ct, PauseToken pt,
+            IProgress<DownloadProgress> progress, IPostQueue<TumblrPost> postQueue, FileDownloader fileDownloader,
+            ICrawlerService crawlerService, IBlog blog, IFiles files)
             : base(shellService, managerService, ct, pt, progress, postQueue, fileDownloader, crawlerService, blog, files)
         {
         }
 
         protected string ImageSize()
         {
-            if (shellService.Settings.ImageSize == "raw")
-                return "1280";
-            return shellService.Settings.ImageSize;
+            return shellService.Settings.ImageSize == "raw" ? "1280" : shellService.Settings.ImageSize;
         }
 
         protected string ResizeTumblrImageUrl(string imageUrl)
         {
             var sb = new StringBuilder(imageUrl);
             return sb
-                .Replace("_raw", "_" + ImageSize())
-                .Replace("_1280", "_" + ImageSize())
-                .Replace("_540", "_" + ImageSize())
-                .Replace("_500", "_" + ImageSize())
-                .Replace("_400", "_" + ImageSize())
-                .Replace("_250", "_" + ImageSize())
-                .Replace("_100", "_" + ImageSize())
-                .Replace("_75sq", "_" + ImageSize())
-                .ToString();
+                   .Replace("_raw", "_" + ImageSize())
+                   .Replace("_1280", "_" + ImageSize())
+                   .Replace("_540", "_" + ImageSize())
+                   .Replace("_500", "_" + ImageSize())
+                   .Replace("_400", "_" + ImageSize())
+                   .Replace("_250", "_" + ImageSize())
+                   .Replace("_100", "_" + ImageSize())
+                   .Replace("_75sq", "_" + ImageSize())
+                   .ToString();
         }
 
         /// <returns>
@@ -54,24 +55,24 @@ namespace TumblThree.Applications.Downloader
             return url;
         }
 
-        protected override async Task<bool> DownloadBinaryPost(TumblrPost downloadItem)
+        protected override async Task<bool> DownloadBinaryPostAsync(TumblrPost downloadItem)
         {
             if (!(downloadItem is PhotoPost))
-                return await base.DownloadBinaryPost(downloadItem);
+                return await base.DownloadBinaryPostAsync(downloadItem);
+
             string url = Url(downloadItem);
 
             if (blog.ForceSize)
-            {
                 url = ResizeTumblrImageUrl(url);
-            }
 
             foreach (string host in shellService.Settings.TumblrHosts)
             {
                 url = BuildRawImageUrl(url, host);
-                if (await base.DownloadBinaryPost(new PhotoPost(url, downloadItem.Id, downloadItem.Date)))
+                if (await base.DownloadBinaryPostAsync(new PhotoPost(url, downloadItem.Id, downloadItem.Date)))
                     return true;
             }
-            return await base.DownloadBinaryPost(downloadItem);
+
+            return await base.DownloadBinaryPostAsync(downloadItem);
         }
 
         /// <summary>
@@ -82,14 +83,13 @@ namespace TumblThree.Applications.Downloader
         /// <returns></returns>
         public string BuildRawImageUrl(string url, string host)
         {
-            if (shellService.Settings.ImageSize == "raw")
-            {
-                string path = new Uri(url).LocalPath.TrimStart('/');
-                var imageDimension = new Regex("_\\d+");
-                path = imageDimension.Replace(path, "_raw");
-                return "https://" + host + "/" + path;
-            }
-            return url;
+            if (shellService.Settings.ImageSize != "raw")
+                return url;
+
+            string path = new Uri(url).LocalPath.TrimStart('/');
+            var imageDimension = new Regex("_\\d+");
+            path = imageDimension.Replace(path, "_raw");
+            return "https://" + host + "/" + path;
         }
     }
 }

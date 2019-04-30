@@ -1,5 +1,7 @@
 ﻿using System.Runtime.Serialization;
 
+using TumblThree.Domain.Models.Blogs;
+
 namespace TumblThree.Domain.Models
 {
     [DataContract]
@@ -24,14 +26,10 @@ namespace TumblThree.Domain.Models
         private bool? downloadRebloggedPosts;
         private bool? online;
 
-        public DetailsBlog()
-        {
-        }
-
         [DataMember]
         public new bool? DownloadText
         {
-            get { return downloadText; }
+            get => downloadText;
             set
             {
                 SetProperty(ref downloadText, value);
@@ -42,7 +40,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadQuote
         {
-            get { return downloadQuote; }
+            get => downloadQuote;
             set
             {
                 SetProperty(ref downloadQuote, value);
@@ -53,7 +51,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadPhoto
         {
-            get { return downloadPhoto; }
+            get => downloadPhoto;
             set
             {
                 SetProperty(ref downloadPhoto, value);
@@ -64,7 +62,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadLink
         {
-            get { return downloadLink; }
+            get => downloadLink;
             set
             {
                 SetProperty(ref downloadLink, value);
@@ -75,7 +73,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadAnswer
         {
-            get { return downloadAnswer; }
+            get => downloadAnswer;
             set
             {
                 SetProperty(ref downloadAnswer, value);
@@ -86,7 +84,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadConversation
         {
-            get { return downloadConversation; }
+            get => downloadConversation;
             set
             {
                 SetProperty(ref downloadConversation, value);
@@ -97,7 +95,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadVideo
         {
-            get { return downloadVideo; }
+            get => downloadVideo;
             set
             {
                 SetProperty(ref downloadVideo, value);
@@ -108,7 +106,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadAudio
         {
-            get { return downloadAudio; }
+            get => downloadAudio;
             set
             {
                 SetProperty(ref downloadAudio, value);
@@ -119,7 +117,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? CreatePhotoMeta
         {
-            get { return createPhotoMeta; }
+            get => createPhotoMeta;
             set
             {
                 SetProperty(ref createPhotoMeta, value);
@@ -130,7 +128,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? CreateVideoMeta
         {
-            get { return createVideoMeta; }
+            get => createVideoMeta;
             set
             {
                 SetProperty(ref createVideoMeta, value);
@@ -141,7 +139,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? CreateAudioMeta
         {
-            get { return createAudioMeta; }
+            get => createAudioMeta;
             set
             {
                 SetProperty(ref createAudioMeta, value);
@@ -152,7 +150,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadRebloggedPosts
         {
-            get { return downloadRebloggedPosts; }
+            get => downloadRebloggedPosts;
             set
             {
                 SetProperty(ref downloadRebloggedPosts, value);
@@ -163,15 +161,14 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? Online
         {
-            get { return online; }
-            set { SetProperty(ref online, value); }
+            get => online;
+            set => SetProperty(ref online, value);
         }
-
 
         [DataMember]
         public new bool? CheckDirectoryForFiles
         {
-            get { return checkDirectoryForFiles; }
+            get => checkDirectoryForFiles;
             set
             {
                 SetProperty(ref checkDirectoryForFiles, value);
@@ -182,7 +179,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? DownloadUrlList
         {
-            get { return downloadUrlList; }
+            get => downloadUrlList;
             set
             {
                 SetProperty(ref downloadUrlList, value);
@@ -190,13 +187,12 @@ namespace TumblThree.Domain.Models
             }
         }
 
-        [DataMember]
-        public new bool? Dirty { get; set; }
+        [DataMember] public new bool? Dirty { get; set; }
 
         [DataMember]
         public new bool? SkipGif
         {
-            get { return skipGif; }
+            get => skipGif;
             set
             {
                 SetProperty(ref skipGif, value);
@@ -207,7 +203,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? ForceSize
         {
-            get { return forceSize; }
+            get => forceSize;
             set
             {
                 SetProperty(ref forceSize, value);
@@ -218,7 +214,7 @@ namespace TumblThree.Domain.Models
         [DataMember]
         public new bool? ForceRescan
         {
-            get { return forceRescan; }
+            get => forceRescan;
             set
             {
                 SetProperty(ref forceRescan, value);

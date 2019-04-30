@@ -6,7 +6,7 @@ namespace TumblThree.Applications
 {
     public class ClipboardMonitor : IDisposable
     {
-        bool disposed = false;
+        private bool disposed = false;
 
         private readonly HwndSource hwndSource = new HwndSource(0, 0, 0, 0, 0, 0, 0, null, NativeMethods.HWND_MESSAGE);
 
@@ -52,16 +52,15 @@ namespace TumblThree.Applications
         protected virtual void Dispose(bool disposing)
         {
             if (disposed)
-            {
                 return;
-            }
-
+            
             if (disposing)
             {
                 NativeMethods.RemoveClipboardFormatListener(hwndSource.Handle);
                 hwndSource.RemoveHook(WndProc);
                 hwndSource.Dispose();
             }
+
             // Free any unmanaged objects here.
             //
             disposed = true;
@@ -70,17 +69,12 @@ namespace TumblThree.Applications
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             if (msg == NativeMethods.WM_CLIPBOARDUPDATE)
-            {
                 OnClipboardContentChanged?.Invoke(this, EventArgs.Empty);
-            }
-
+            
             return IntPtr.Zero;
         }
 
-        ~ClipboardMonitor()
-        {
-            Dispose(false);
-        }
+        ~ClipboardMonitor() => Dispose(false);
 
         /// <summary>
         ///     Occurs when the clipboard content changes.

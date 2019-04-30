@@ -6,7 +6,7 @@ namespace TumblThree.Applications
     {
         internal static readonly TaskCompletionSource<bool> s_completedTcs;
         private readonly object m_lockObject = new object();
-        bool m_paused = false; // could use m_resumeRequest as flag too
+        private bool m_paused = false; // could use m_resumeRequest as flag too
         private TaskCompletionSource<bool> m_pauseResponse;
         private TaskCompletionSource<bool> m_resumeRequest;
 
@@ -25,19 +25,15 @@ namespace TumblThree.Applications
             }
         }
 
-        public PauseToken Token
-        {
-            get { return new PauseToken(this); }
-        }
+        public PauseToken Token => new PauseToken(this);
 
         public void Pause()
         {
             lock (m_lockObject)
             {
                 if (m_paused)
-                {
                     return;
-                }
+                
                 m_paused = true;
                 m_pauseResponse = s_completedTcs;
                 m_resumeRequest = new TaskCompletionSource<bool>();
@@ -51,9 +47,8 @@ namespace TumblThree.Applications
             lock (m_lockObject)
             {
                 if (!m_paused)
-                {
                     return;
-                }
+                
                 m_paused = false;
                 resumeRequest = m_resumeRequest;
                 m_resumeRequest = null;
@@ -72,9 +67,8 @@ namespace TumblThree.Applications
             lock (m_lockObject)
             {
                 if (m_paused)
-                {
                     return m_pauseResponse.Task;
-                }
+                
                 m_paused = true;
                 m_pauseResponse = new TaskCompletionSource<bool>();
                 m_resumeRequest = new TaskCompletionSource<bool>();
@@ -92,9 +86,8 @@ namespace TumblThree.Applications
             lock (m_lockObject)
             {
                 if (!m_paused)
-                {
                     return s_completedTcs.Task;
-                }
+                
                 response = m_pauseResponse;
                 resumeTask = m_resumeRequest.Task;
             }
@@ -108,21 +101,12 @@ namespace TumblThree.Applications
     {
         private readonly PauseTokenSource m_source;
 
-        public PauseToken(PauseTokenSource source)
-        {
-            m_source = source;
-        }
+        public PauseToken(PauseTokenSource source) => m_source = source;
 
-        public bool IsPaused
-        {
-            get { return m_source != null && m_source.IsPaused; }
-        }
+        public bool IsPaused => m_source != null && m_source.IsPaused;
 
-        public Task WaitWhilePausedWithResponseAsyc()
-        {
-            return IsPaused
+        public Task WaitWhilePausedWithResponseAsyc() => IsPaused
                 ? m_source.WaitWhilePausedWithResponseAsyc()
                 : PauseTokenSource.s_completedTcs.Task;
-        }
     }
 }

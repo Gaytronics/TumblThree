@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Runtime.Serialization.Json;
 using System.Text;
@@ -8,12 +10,11 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 
-using TumblThree.Applications.Extensions;
 using TumblThree.Applications.Properties;
 using TumblThree.Applications.Services;
 using TumblThree.Domain.Models;
 
-namespace TumblThree.Applications.Crawler
+namespace TumblThree.Applications.Parser
 {
     public class GfycatParser : IGfycatParser
     {
@@ -28,10 +29,9 @@ namespace TumblThree.Applications.Crawler
             this.ct = ct;
         }
 
-        public Regex GetGfycatUrlRegex()
-        {
-            return new Regex("(http[A-Za-z0-9_/:.]*gfycat.com/([A-Za-z0-9_]*))");
-        }
+        public Regex GetGfycatUrlRegex() => new Regex("(http[A-Za-z0-9_/:.]*gfycat.com/([A-Za-z0-9_]*))");
+
+        public string GetGfycatId(string url) => GetGfycatUrlRegex().Match(url).Groups[2].Value;
 
         public virtual async Task<string> RequestGfycatCajax(string gfyId)
         {
@@ -41,7 +41,7 @@ namespace TumblThree.Applications.Crawler
                 string url = @"https://gfycat.com/cajax/get/" + gfyId;
                 HttpWebRequest request = webRequestFactory.CreateGetXhrReqeust(url);
                 requestRegistration = ct.Register(() => request.Abort());
-                return await webRequestFactory.ReadReqestToEnd(request);
+                return await webRequestFactory.ReadReqestToEndAsync(request);
             }
             finally
             {
@@ -52,7 +52,7 @@ namespace TumblThree.Applications.Crawler
         public string ParseGfycatCajaxResponse(string result, GfycatTypes gfycatType)
         {
             XmlDictionaryReader jsonReader = JsonReaderWriterFactory.CreateJsonReader(Encoding.UTF8.GetBytes(result),
-                new System.Xml.XmlDictionaryReaderQuotas());
+                new XmlDictionaryReaderQuotas());
             XElement root = XElement.Load(jsonReader);
             string url;
             switch (gfycatType)
@@ -84,7 +84,21 @@ namespace TumblThree.Applications.Crawler
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+
             return url;
+        }
+
+        public async Task<IEnumerable<string>> SearchForGfycatUrlAsync(string searchableText, GfycatTypes gfycatType)
+        {
+            var urlList = new List<string>();
+            Regex regex = GetGfycatUrlRegex();
+            foreach (Match match in regex.Matches(searchableText))
+            {
+                string gfyId = match.Groups[2].Value;
+                urlList.Add(ParseGfycatCajaxResponse(await RequestGfycatCajax(gfyId), gfycatType));
+            }
+
+            return urlList;
         }
     }
 }

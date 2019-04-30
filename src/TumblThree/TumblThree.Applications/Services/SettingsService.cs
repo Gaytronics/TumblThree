@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.Composition;
-using TumblThree.Domain.Models;
+
+using TumblThree.Domain.Models.Blogs;
 
 namespace TumblThree.Applications.Services
 {
@@ -11,10 +12,7 @@ namespace TumblThree.Applications.Services
         private readonly IShellService shellService;
 
         [ImportingConstructor]
-        public SettingsService(IShellService shellService)
-        {
-            this.shellService = shellService;
-        }
+        public SettingsService(IShellService shellService) => this.shellService = shellService;
 
         public IBlog TransferGlobalSettingsToBlog(IBlog blog)
         {
@@ -57,6 +55,8 @@ namespace TumblThree.Applications.Services
             blog.LoliSafeType = shellService.Settings.LoliSafeType;
             blog.CatBoxType = shellService.Settings.CatBoxType;
             blog.DumpCrawlerData = shellService.Settings.DumpCrawlerData;
+            blog.RegExPhotos = shellService.Settings.RegExPhotos;
+            blog.RegExVideos = shellService.Settings.RegExVideos;
             return blog;
         }
     }

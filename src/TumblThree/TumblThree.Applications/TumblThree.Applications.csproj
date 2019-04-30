@@ -52,7 +52,6 @@
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Web" />
-    <Reference Include="System.Web.Extensions" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.XML" />
     <Reference Include="System.Xml.Linq" />
@@ -69,8 +68,13 @@
     <Compile Include="Controllers\ManagerController.cs" />
     <Compile Include="Controllers\ModuleController.cs" />
     <Compile Include="Controllers\QueueController.cs" />
-    <Compile Include="Crawler\TumblrAbstractCrawler.cs" />
-    <Compile Include="DataModels\TumblrApiJson.cs" />
+    <Compile Include="Crawler\AbstractTumblrCrawler.cs" />
+    <Compile Include="DataModels\TumblrApiJson\Conversation.cs" />
+    <Compile Include="DataModels\TumblrApiJson\Photo.cs" />
+    <Compile Include="DataModels\TumblrApiJson\Post.cs" />
+    <Compile Include="DataModels\TumblrApiJson\TumbleLog.cs" />
+    <Compile Include="DataModels\TumblrApiJson\TumbleLog2.cs" />
+    <Compile Include="DataModels\TumblrApiJson\TumblrApiJson.cs" />
     <Compile Include="DataModels\TumblrCrawlerData\TumblrCrawlerData.cs" />
     <Compile Include="Downloader\TumblrJsonDownloader.cs" />
     <Compile Include="Parser\CatBoxParser.cs" />
@@ -120,9 +124,9 @@
     <Compile Include="Downloader\ICrawlerDataDownloader.cs" />
     <Compile Include="Downloader\TumblrXmlDownloader.cs" />
     <Compile Include="ObjectModel\ObservableRangeCollection.cs" />
-    <Compile Include="DataModels\TumblrSvcJson.cs" />
+    <Compile Include="DataModels\TumblrSvcJson\TumblrSvcJson.cs" />
     <Compile Include="DataModels\TumblrPosts\TumblrPost.cs" />
-    <Compile Include="DataModels\TumblrSearchJson.cs" />
+    <Compile Include="DataModels\TumblrSearchJson\TumblrSearchJson.cs" />
     <Compile Include="Data\StringListConverter.cs" />
     <Compile Include="Data\SupportedFileTypes.cs" />
     <Compile Include="Downloader\AbstractDownloader.cs" />
@@ -189,7 +193,7 @@
     <Compile Include="ViewModels\AboutViewModel.cs" />
     <Compile Include="ViewModels\CrawlerViewModel.cs" />
     <Compile Include="ViewModels\DetailsViewModels\DetailsAllViewModel.cs" />
-    <Compile Include="ViewModels\IDetailsViewModel.cs" />
+    <Compile Include="Views\IDetailsViewModel.cs" />
     <Compile Include="ViewModels\ManagerViewModel.cs" />
     <Compile Include="ViewModels\QueueViewModel.cs" />
     <Compile Include="ViewModels\AuthenticateViewModel.cs" />
@@ -224,7 +228,9 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="Properties\Resources.ar.resx" />
+    <EmbeddedResource Include="Properties\Resources.ar.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.de.resx" />
     <EmbeddedResource Include="Properties\Resources.el.resx" />
     <EmbeddedResource Include="Properties\Resources.es.resx" />

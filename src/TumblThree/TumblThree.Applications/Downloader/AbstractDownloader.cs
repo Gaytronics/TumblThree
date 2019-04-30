@@ -12,7 +12,8 @@ using TumblThree.Applications.DataModels.TumblrPosts;
 using TumblThree.Applications.Properties;
 using TumblThree.Applications.Services;
 using TumblThree.Domain;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
+using TumblThree.Domain.Models.Files;
 
 namespace TumblThree.Applications.Downloader
 {
@@ -29,9 +30,14 @@ namespace TumblThree.Applications.Downloader
         protected readonly CancellationToken ct;
         protected readonly PauseToken pt;
         protected readonly FileDownloader fileDownloader;
-        string[] suffixes = { ".jpg", ".jpeg", ".png" };
+        private readonly string[] suffixes = { ".jpg", ".jpeg", ".png" };
 
-        protected AbstractDownloader(IShellService shellService, IManagerService managerService, CancellationToken ct, PauseToken pt, IProgress<DownloadProgress> progress, IPostQueue<TumblrPost> postQueue, FileDownloader fileDownloader, ICrawlerService crawlerService = null, IBlog blog = null, IFiles files = null)
+        private SemaphoreSlim concurrentConnectionsSemaphore;
+        private SemaphoreSlim concurrentVideoConnectionsSemaphore;
+
+        protected AbstractDownloader(IShellService shellService, IManagerService managerService, CancellationToken ct,
+            PauseToken pt, IProgress<DownloadProgress> progress, IPostQueue<TumblrPost> postQueue, FileDownloader fileDownloader,
+            ICrawlerService crawlerService = null, IBlog blog = null, IFiles files = null)
         {
             this.shellService = shellService;
             this.crawlerService = crawlerService;
@@ -47,7 +53,7 @@ namespace TumblThree.Applications.Downloader
 
         public void UpdateProgressQueueInformation(string format, params object[] args)
         {
-            var newProgress = new DataModels.DownloadProgress
+            var newProgress = new DownloadProgress
             {
                 Progress = string.Format(CultureInfo.CurrentCulture, format, args)
             };
@@ -59,7 +65,7 @@ namespace TumblThree.Applications.Downloader
             return url;
         }
 
-        protected virtual async Task<bool> DownloadBinaryFile(string fileLocation, string url)
+        protected virtual async Task<bool> DownloadBinaryFileAsync(string fileLocation, string url)
         {
             try
             {
@@ -78,14 +84,21 @@ namespace TumblThree.Applications.Downloader
                 // The process cannot access the file because it is being used by another process.", HRESULT: -2147024864 == 0xFFFFFFFF80070020
                 return true;
             }
-            catch (WebException webException) when ((webException.Response != null))
+            catch (WebException webException) when (webException.Response != null)
             {
-                var webRespStatusCode = (int)((HttpWebResponse)webException?.Response).StatusCode;
-                if (webRespStatusCode >= 400 && webRespStatusCode < 600) // removes inaccessible files: http status codes 400 to 599
+                var webRespStatusCode = (int)((HttpWebResponse)webException.Response).StatusCode;
+                if (webRespStatusCode >= 400 && webRespStatusCode < 600
+                ) // removes inaccessible files: http status codes 400 to 599
                 {
-                    try { File.Delete(fileLocation); } // could be open again in a different thread
-                    catch { }
+                    try
+                    {
+                        File.Delete(fileLocation);
+                    } // could be open again in a different thread
+                    catch
+                    {
+                    }
                 }
+
                 return false;
             }
             catch (TimeoutException timeoutException)
@@ -94,18 +107,13 @@ namespace TumblThree.Applications.Downloader
                 shellService.ShowError(timeoutException, Resources.TimeoutReached, Resources.Downloading, blog.Name);
                 throw;
             }
-            catch
-            {
-                throw;
-            }
         }
 
-        protected virtual async Task<bool> DownloadBinaryFile(string fileLocation, string fileLocationUrlList, string url)
+        protected virtual async Task<bool> DownloadBinaryFileAsync(string fileLocation, string fileLocationUrlList, string url)
         {
             if (!blog.DownloadUrlList)
-            {
-                return await DownloadBinaryFile(fileLocation, url);
-            }
+                return await DownloadBinaryFileAsync(fileLocation, url);
+
             return AppendToTextFile(fileLocationUrlList, url);
         }
 
@@ -120,6 +128,7 @@ namespace TumblThree.Applications.Downloader
                         sw.WriteLine(text);
                     }
                 }
+
                 return true;
             }
             catch (IOException ex) when ((ex.HResult & 0xFFFF) == 0x27 || (ex.HResult & 0xFFFF) == 0x70)
@@ -137,8 +146,10 @@ namespace TumblThree.Applications.Downloader
 
         public virtual async Task<bool> DownloadBlogAsync()
         {
-            var concurrentConnectionsSemaphore = new SemaphoreSlim(shellService.Settings.ConcurrentConnections / crawlerService.ActiveItems.Count);
-            var concurrentVideoConnectionsSemaphore = new SemaphoreSlim(shellService.Settings.ConcurrentVideoConnections / crawlerService.ActiveItems.Count);
+            concurrentConnectionsSemaphore =
+                new SemaphoreSlim(shellService.Settings.ConcurrentConnections / crawlerService.ActiveItems.Count);
+            concurrentVideoConnectionsSemaphore =
+                new SemaphoreSlim(shellService.Settings.ConcurrentVideoConnections / crawlerService.ActiveItems.Count);
             var trackedTasks = new List<Task>();
             var completeDownload = true;
 
@@ -150,28 +161,23 @@ namespace TumblThree.Applications.Downloader
                     await concurrentVideoConnectionsSemaphore.WaitAsync();
                 await concurrentConnectionsSemaphore.WaitAsync();
 
-                if (ct.IsCancellationRequested)
-                {
+                if (CheckIfShouldStop())
                     break;
-                }
-                if (pt.IsPaused)
-                {
-                    pt.WaitWhilePausedWithResponseAsyc().Wait();
-                }
 
-                trackedTasks.Add(new Func<Task>(async () =>
-                {
-                    try { await DownloadPostAsync(downloadItem); }
-                    catch {}
-                    finally {
-                        concurrentConnectionsSemaphore.Release();
-                        if (downloadItem.GetType() == typeof(VideoPost))
-                            concurrentVideoConnectionsSemaphore.Release();
-                    }
-                })());
+                CheckIfShouldPause();
+
+                trackedTasks.Add(DownloadPostAsync(downloadItem));
             }
-            try { await Task.WhenAll(trackedTasks); }
-            catch { completeDownload = false; }
+
+            // TODO: Is this even right?
+            try
+            {
+                await Task.WhenAll(trackedTasks);
+            }
+            catch
+            {
+                completeDownload = false;
+            }
 
             blog.LastDownloadedPhoto = null;
             blog.LastDownloadedVideo = null;
@@ -183,21 +189,39 @@ namespace TumblThree.Applications.Downloader
 
         private async Task DownloadPostAsync(TumblrPost downloadItem)
         {
-            // TODO: Refactor, should be polymorphism
-            if (downloadItem.PostType == PostType.Binary)
+            try
             {
-                await DownloadBinaryPost(downloadItem);
+                await DownloadPostCoreAsync(downloadItem);
             }
-            else
+            catch
             {
-                DownloadTextPost(downloadItem);
-            }            
+            }
+            finally
+            {
+                concurrentConnectionsSemaphore.Release();
+                if (downloadItem.GetType() == typeof(VideoPost))
+                    concurrentVideoConnectionsSemaphore.Release();
+            }
         }
 
-        protected virtual async Task<bool> DownloadBinaryPost(TumblrPost downloadItem)
+        private async Task DownloadPostCoreAsync(TumblrPost downloadItem)
+        {
+            // TODO: Refactor, should be polymorphism
+            if (downloadItem.PostType == PostType.Binary)
+                await DownloadBinaryPostAsync(downloadItem);
+            else
+                DownloadTextPost(downloadItem);
+        }
+
+        protected virtual async Task<bool> DownloadBinaryPostAsync(TumblrPost downloadItem)
         {
             string url = Url(downloadItem);
-            if (!CheckIfFileExistsInDB(url))
+            if (CheckIfFileExistsInDB(url))
+            {
+                string fileName = FileName(downloadItem);
+                UpdateProgressQueueInformation(Resources.ProgressSkipFile, fileName);
+            }
+            else
             {
                 string blogDownloadLocation = blog.DownloadLocation();
                 string fileName = FileName(downloadItem);
@@ -205,67 +229,49 @@ namespace TumblThree.Applications.Downloader
                 string fileLocationUrlList = FileLocationLocalized(blogDownloadLocation, downloadItem.TextFileLocation);
                 DateTime postDate = PostDate(downloadItem);
                 UpdateProgressQueueInformation(Resources.ProgressDownloadImage, fileName);
-                if (await DownloadBinaryFile(fileLocation, fileLocationUrlList, url))
-                {
-                    SetFileDate(fileLocation, postDate);
-                    UpdateBlogDB(downloadItem.DbType, fileName);
-                    //TODO: Refactor
-                    if (shellService.Settings.EnablePreview)
-                    {
-                        if (suffixes.Any(suffix => fileName.EndsWith(suffix)))
-                        {
-                            blog.LastDownloadedPhoto = Path.GetFullPath(fileLocation);
-                        }
-                        else
-                        {
-                            blog.LastDownloadedVideo = Path.GetFullPath(fileLocation);
-                        }
-                    }
+                if (!await DownloadBinaryFileAsync(fileLocation, fileLocationUrlList, url))
+                    return false;
+                SetFileDate(fileLocation, postDate);
+                UpdateBlogDB(downloadItem.DbType, fileName);
+
+                //TODO: Refactor
+                if (!shellService.Settings.EnablePreview)
                     return true;
-                }
-                return false;
+
+                if (suffixes.Any(suffix => fileName.EndsWith(suffix)))
+                    blog.LastDownloadedPhoto = Path.GetFullPath(fileLocation);
+                else
+                    blog.LastDownloadedVideo = Path.GetFullPath(fileLocation);
+
+                return true;
             }
-            else
-            {
-                string fileName = FileName(downloadItem);
-                UpdateProgressQueueInformation(Resources.ProgressSkipFile, fileName);
-            }
+
             return true;
         }
 
         private bool CheckIfFileExistsInDB(string url)
         {
             if (shellService.Settings.LoadAllDatabases)
-            {
-                if (managerService.CheckIfFileExistsInDB(url))
-                    return true;
-            }
-            else
-            {
-                if (files.CheckIfFileExistsInDB(url) || blog.CheckIfBlogShouldCheckDirectory(GetCoreImageUrl(url)))
-                    return true;
-            }
-            return false;
-        }
+                return managerService.CheckIfFileExistsInDB(url);
 
+            return files.CheckIfFileExistsInDB(url) || blog.CheckIfBlogShouldCheckDirectory(GetCoreImageUrl(url));
+        }
 
         private void DownloadTextPost(TumblrPost downloadItem)
         {
             string postId = PostId(downloadItem);
-            if (!CheckIfFileExistsInDB(postId))
+            if (CheckIfFileExistsInDB(postId))
+            {
+                UpdateProgressQueueInformation(Resources.ProgressSkipFile, postId);
+            }
+            else
             {
                 string blogDownloadLocation = blog.DownloadLocation();
                 string url = Url(downloadItem);
                 string fileLocation = FileLocationLocalized(blogDownloadLocation, downloadItem.TextFileLocation);
                 UpdateProgressQueueInformation(Resources.ProgressDownloadImage, postId);
                 if (AppendToTextFile(fileLocation, url))
-                {
                     UpdateBlogDB(downloadItem.DbType, postId);
-                }
-            }
-            else
-            {
-                UpdateProgressQueueInformation(Resources.ProgressSkipFile, postId);
             }
         }
 
@@ -278,10 +284,10 @@ namespace TumblThree.Applications.Downloader
 
         protected void SetFileDate(string fileLocation, DateTime postDate)
         {
-            if (!blog.DownloadUrlList)
-            {
-                File.SetLastWriteTime(fileLocation, postDate);
-            }
+            if (blog.DownloadUrlList)
+                return;
+
+            File.SetLastWriteTime(fileLocation, postDate);
         }
 
         protected static string Url(TumblrPost downloadItem)
@@ -311,13 +317,23 @@ namespace TumblThree.Applications.Downloader
 
         protected static DateTime PostDate(TumblrPost downloadItem)
         {
-            if (!string.IsNullOrEmpty(downloadItem.Date))
-            {
-                var epoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, System.DateTimeKind.Utc);
-                DateTime postDate = epoch.AddSeconds(Convert.ToDouble(downloadItem.Date)).ToLocalTime();
-                return postDate;
-            }
-            return DateTime.Now;
+            if (string.IsNullOrEmpty(downloadItem.Date))
+                return DateTime.Now;
+
+            var epoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+            DateTime postDate = epoch.AddSeconds(Convert.ToDouble(downloadItem.Date)).ToLocalTime();
+            return postDate;
+        }
+
+        protected bool CheckIfShouldStop()
+        {
+            return ct.IsCancellationRequested;
+        }
+
+        protected void CheckIfShouldPause()
+        {
+            if (pt.IsPaused)
+                pt.WaitWhilePausedWithResponseAsyc().Wait();
         }
     }
 }

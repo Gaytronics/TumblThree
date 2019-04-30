@@ -7,7 +7,7 @@ using System.Waf.Foundation;
 using System.Windows.Input;
 
 using TumblThree.Applications.Services;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 using TumblThree.Domain.Queue;
 
 namespace TumblThree.Presentation.DesignData
@@ -25,10 +25,7 @@ namespace TumblThree.Presentation.DesignData
 
         public ICommand AddBlogToQueueCommand { get; set; }
 
-        public IReadOnlyObservableList<QueueListItem> ActiveItems
-        {
-            get { return readonlyActiveItems; }
-        }
+        public IReadOnlyObservableList<QueueListItem> ActiveItems => readonlyActiveItems;
 
         public void AddActiveItems(QueueListItem itemToAdd)
         {
@@ -42,6 +39,8 @@ namespace TumblThree.Presentation.DesignData
 
         public ICommand AddBlogCommand { get; set; }
 
+        public ICommand ImportBlogsCommand { get; set; }
+
         public ICommand RemoveBlogFromQueueCommand { get; set; }
 
         public ICommand ShowFilesCommand { get; set; }
@@ -51,6 +50,8 @@ namespace TumblThree.Presentation.DesignData
         public ICommand LoadLibraryCommand { get; set; }
 
         public ICommand LoadAllDatabasesCommand { get; set; }
+
+        public ICommand CheckIfDatabasesCompleteCommand { get; set; }
 
         public ICommand ListenClipboardCommand { get; set; }
 
@@ -77,8 +78,9 @@ namespace TumblThree.Presentation.DesignData
 
         public Timer Timer { get; set; }
 
-        public TaskCompletionSource<bool> DatabasesLoaded { get; set; }
+        public TaskCompletionSource<bool> LibraryLoaded { get; set; }
 
+        public TaskCompletionSource<bool> DatabasesLoaded { get; set; }
 
         public void SetActiveBlogFiles(IEnumerable<IBlog> blogFilesToAdd)
         {

@@ -1,9 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization;
 
-namespace TumblThree.Domain.Models
+using TumblThree.Domain.Models.Files;
+
+namespace TumblThree.Domain.Models.Blogs
 {
     [DataContract]
     public class TumblrBlog : Blog
@@ -31,6 +32,7 @@ namespace TumblThree.Domain.Models
                 files.Save();
                 files = null;
             }
+
             return blog;
         }
     }

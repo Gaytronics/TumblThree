@@ -151,6 +151,24 @@ namespace TumblThree.Applications.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to confirming to the Tumblr privacy consent.
+        /// </summary>
+        public static string ConfirmingTumblrPrivacyConsent {
+            get {
+                return ResourceManager.GetString("ConfirmingTumblrPrivacyConsent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Confirming to the Tumblr privacy consent failed. There might be a connection issue..
+        /// </summary>
+        public static string ConfirmingTumblrPrivacyConsentFailed {
+            get {
+                return ResourceManager.GetString("ConfirmingTumblrPrivacyConsentFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Conversation: {0}.
         /// </summary>
         public static string Conversation {
@@ -729,11 +747,20 @@ namespace TumblThree.Applications.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to A connection timout occured during {0} of {1}..
+        ///   Looks up a localized string similar to A connection timeout occured during {0} of {1}..
         /// </summary>
         public static string TimeoutReached {
             get {
                 return ResourceManager.GetString("TimeoutReached", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A connection timeout occured during {0}..
+        /// </summary>
+        public static string TimeoutReachedShort {
+            get {
+                return ResourceManager.GetString("TimeoutReachedShort", resourceCulture);
             }
         }
         

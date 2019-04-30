@@ -5,9 +5,11 @@ using System.ComponentModel;
 using System.ComponentModel.Composition;
 using System.Linq;
 using System.Reflection;
+
 using TumblThree.Applications.Services;
 using TumblThree.Applications.Views;
 using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 using TumblThree.Domain.Queue;
 
 namespace TumblThree.Applications.Controllers
@@ -15,19 +17,22 @@ namespace TumblThree.Applications.Controllers
     [Export, Export(typeof(IDetailsService))]
     internal class DetailsController : IDetailsService
     {
-        private readonly HashSet<IBlog> blogsToSave;
-        private Lazy<IDetailsViewModel> detailsViewModel;
         private readonly ISelectionService selectionService;
         private readonly IShellService shellService;
 
+        private Lazy<IDetailsViewModel> detailsViewModel;
+
+        private readonly HashSet<IBlog> blogsToSave;
+
         [ImportingConstructor]
-        public DetailsController(IShellService shellService, ISelectionService selectionService, IManagerService managerService
-            )
+        public DetailsController(IShellService shellService, ISelectionService selectionService, IManagerService managerService)
         {
             this.shellService = shellService;
             this.selectionService = selectionService;
             blogsToSave = new HashSet<IBlog>();
         }
+
+        public QueueManager QueueManager { get; set; }
 
         [ImportMany(typeof(IDetailsViewModel))]
         private IEnumerable<Lazy<IDetailsViewModel, ICrawlerData>> ViewModelFactoryLazy { get; set; }
@@ -37,22 +42,12 @@ namespace TumblThree.Applications.Controllers
             Lazy<IDetailsViewModel, ICrawlerData> viewModel =
                 ViewModelFactoryLazy.FirstOrDefault(list => list.Metadata.BlogType == blog.GetType());
 
-            if (viewModel != null)
-            {
-                return viewModel;
-            }
-            throw new ArgumentException("Website is not supported!", "blogType");
+            if (viewModel == null)
+                throw new ArgumentException("Website is not supported!", "blogType");
+            return viewModel;
         }
 
-        public QueueManager QueueManager { get; set; }
-
-        private IDetailsViewModel DetailsViewModel
-        {
-            get
-            {
-                return detailsViewModel.Value;
-            }
-        }
+        private IDetailsViewModel DetailsViewModel => detailsViewModel.Value;
 
         public void SelectBlogFiles(IReadOnlyList<IBlog> blogFiles)
         {
@@ -60,14 +55,14 @@ namespace TumblThree.Applications.Controllers
 
             ClearBlogSelection();
 
-            if (blogFiles.Count() <= 1)
+            if (blogFiles.Count <= 1)
             {
                 DetailsViewModel.Count = 1;
                 DetailsViewModel.BlogFile = blogFiles.FirstOrDefault();
             }
             else
             {
-                DetailsViewModel.Count = blogFiles.Count();
+                DetailsViewModel.Count = blogFiles.Count;
                 DetailsViewModel.BlogFile = CreateFromMultiple(blogFiles.ToArray());
                 DetailsViewModel.BlogFile.PropertyChanged += ChangeBlogSettings;
             }
@@ -77,14 +72,10 @@ namespace TumblThree.Applications.Controllers
         {
             if (blogFiles.Count == 0)
                 return;
-            if (blogFiles.Select(blog => blog.GetType()).Distinct().Count() < 2)
-            {
-                detailsViewModel = GetViewModel(blogFiles.FirstOrDefault());
-            }
-            else
-            {
-                detailsViewModel = GetViewModel(new Blog());
-            }
+
+            detailsViewModel = GetViewModel(blogFiles.Select(blog => blog.GetType()).Distinct().Count() < 2
+                ? blogFiles.FirstOrDefault()
+                : new Blog());
             shellService.DetailsView = DetailsViewModel.View;
             shellService.UpdateDetailsView();
         }
@@ -111,12 +102,12 @@ namespace TumblThree.Applications.Controllers
 
         public IBlog CreateFromMultiple(IEnumerable<IBlog> blogFiles)
         {
-            if (!blogFiles.Any())
+            List<IBlog> sharedBlogFiles = blogFiles.ToList();
+            if (!sharedBlogFiles.Any())
             {
                 throw new ArgumentException("The collection must have at least one item.", nameof(blogFiles));
             }
 
-            IBlog[] sharedBlogFiles = blogFiles.ToArray();
             foreach (IBlog blog in sharedBlogFiles)
             {
                 blogsToSave.Add(blog);
@@ -191,52 +182,45 @@ namespace TumblThree.Applications.Controllers
                 CatBoxType = SetProperty<CatBoxTypes>(sharedBlogFiles, "CatBoxType"),
                 MetadataFormat = SetProperty<MetadataType>(sharedBlogFiles, "MetadataFormat"),
                 DumpCrawlerData = SetCheckBox(sharedBlogFiles, "DumpCrawlerData"),
+                RegExPhotos = SetCheckBox(sharedBlogFiles, "RegExPhotos"),
+                RegExVideos = SetCheckBox(sharedBlogFiles, "RegExVideos"),
                 FileDownloadLocation = SetProperty<string>(sharedBlogFiles, "FileDownloadLocation"),
                 Dirty = false
             };
         }
 
-        private static T SetProperty<T>(IReadOnlyCollection<IBlog> blogs, string propertyName) where T: IConvertible
+        private static T SetProperty<T>(IReadOnlyCollection<IBlog> blogs, string propertyName) where T : IConvertible
         {
             PropertyInfo property = typeof(IBlog).GetProperty(propertyName);
             var value = (T)property.GetValue(blogs.FirstOrDefault());
-            if (value != null)
-            {
-                bool equal = blogs.All(blog => property.GetValue(blog)?.Equals(value) ?? false);
-                if (equal)
-                    return value;
+            if (value == null)
                 return default(T);
-            }
-            return default(T);
+
+            bool equal = blogs.All(blog => property.GetValue(blog)?.Equals(value) ?? false);
+            return equal ? value : default(T);
         }
 
         private static bool SetCheckBox(IReadOnlyCollection<IBlog> blogs, string propertyName)
         {
             PropertyInfo property = typeof(IBlog).GetProperty(propertyName);
+
             int numberOfBlogs = blogs.Count;
             int checkedBlogs = blogs.Select(blog => (bool)property.GetValue(blog)).Count(state => state);
-            if (checkedBlogs == numberOfBlogs)
-                return true;
-            if (checkedBlogs == 0)
-                return false;
-            //return null; // three-state checkbox for the details view?
-            return false;
+
+            return checkedBlogs == numberOfBlogs;
         }
 
         private void ClearBlogSelection()
         {
             if (blogsToSave.Any())
-            {
                 blogsToSave.Clear();
-            }
         }
 
         private void SelectedBlogFilesCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (DetailsViewModel.BlogFile != null)
-            {
                 DetailsViewModel.BlogFile.PropertyChanged -= ChangeBlogSettings;
-            }
+
             SelectBlogFiles(selectionService.SelectedBlogFiles.ToArray());
         }
     }

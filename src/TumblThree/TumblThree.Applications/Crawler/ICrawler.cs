@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
-
-using TumblThree.Applications.DataModels;
+﻿using System.Threading.Tasks;
 
 namespace TumblThree.Applications.Crawler
 {
@@ -12,7 +9,5 @@ namespace TumblThree.Applications.Crawler
         Task IsBlogOnlineAsync();
 
         Task UpdateMetaInformationAsync();
-
-        void UpdateProgressQueueInformation(string format, params object[] args);
     }
 }

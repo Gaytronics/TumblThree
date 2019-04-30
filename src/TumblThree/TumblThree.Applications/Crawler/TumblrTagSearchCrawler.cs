@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Globalization;
-using System.Linq;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,27 +10,35 @@ using System.Threading.Tasks;
 using TumblThree.Applications.DataModels;
 using TumblThree.Applications.DataModels.TumblrPosts;
 using TumblThree.Applications.Downloader;
+using TumblThree.Applications.Parser;
 using TumblThree.Applications.Properties;
 using TumblThree.Applications.Services;
 using TumblThree.Domain;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 
 namespace TumblThree.Applications.Crawler
 {
     [Export(typeof(ICrawler))]
     [ExportMetadata("BlogType", typeof(TumblrTagSearchBlog))]
-    public class TumblrTagSearchCrawler : TumblrAbstractCrawler, ICrawler
+    [PartCreationPolicy(CreationPolicy.NonShared)]
+    public class TumblrTagSearchCrawler : AbstractTumblrCrawler, ICrawler
     {
         private readonly IDownloader downloader;
-        private readonly PauseToken pt;
 
-        public TumblrTagSearchCrawler(IShellService shellService, CancellationToken ct, PauseToken pt, IProgress<DownloadProgress> progress,
-            ICrawlerService crawlerService, IWebRequestFactory webRequestFactory, ISharedCookieService cookieService,
-            IDownloader downloader, IPostQueue<TumblrPost> postQueue, IBlog blog)
-            : base(shellService, crawlerService, ct, progress, webRequestFactory, cookieService, postQueue, blog)
+        private SemaphoreSlim semaphoreSlim;
+        private List<Task> trackedTasks;
+
+        public TumblrTagSearchCrawler(IShellService shellService, CancellationToken ct, PauseToken pt,
+            IProgress<DownloadProgress> progress, ICrawlerService crawlerService, IWebRequestFactory webRequestFactory,
+            ISharedCookieService cookieService, IDownloader downloader, ITumblrParser tumblrParser, IImgurParser imgurParser,
+            IGfycatParser gfycatParser, IWebmshareParser webmshareParser, IMixtapeParser mixtapeParser, IUguuParser uguuParser,
+            ISafeMoeParser safemoeParser, ILoliSafeParser lolisafeParser, ICatBoxParser catboxParser,
+            IPostQueue<TumblrPost> postQueue, IBlog blog)
+            : base(shellService, crawlerService, ct, pt, progress, webRequestFactory, cookieService, tumblrParser, imgurParser,
+                gfycatParser, webmshareParser, mixtapeParser, uguuParser, safemoeParser, lolisafeParser, catboxParser, postQueue,
+                blog)
         {
             this.downloader = downloader;
-            this.pt = pt;
         }
 
         public async Task CrawlAsync()
@@ -64,8 +72,8 @@ namespace TumblThree.Applications.Crawler
 
         private async Task GetUrlsAsync()
         {
-            var semaphoreSlim = new SemaphoreSlim(shellService.Settings.ConcurrentScans);
-            var trackedTasks = new List<Task>();
+            semaphoreSlim = new SemaphoreSlim(shellService.Settings.ConcurrentScans);
+            trackedTasks = new List<Task>();
 
             if (!await CheckIfLoggedInAsync())
             {
@@ -75,39 +83,17 @@ namespace TumblThree.Applications.Crawler
                 return;
             }
 
+            GenerateTags();
+
             long crawlerTimeOffset = GenerateCrawlerTimeOffsets();
 
             foreach (int pageNumber in GetPageNumbers())
             {
                 await semaphoreSlim.WaitAsync();
 
-                trackedTasks.Add(new Func<Task>(async () =>
-                {
-                    if (!string.IsNullOrWhiteSpace(blog.Tags))
-                    {
-                        tags = blog.Tags.Split(',').Select(x => x.Trim()).ToList();
-                    }
-
-                    try
-                    {
-                        long pagination = DateTimeOffset.Now.ToUnixTimeSeconds() - (pageNumber * crawlerTimeOffset);
-                        long nextCrawlersPagination = DateTimeOffset.Now.ToUnixTimeSeconds() - ((pageNumber + 1) * crawlerTimeOffset);
-                        await AddUrlsToDownloadList(pagination, nextCrawlersPagination);
-                    }
-                    catch (TimeoutException timeoutException)
-                    {
-                        Logger.Error("TumblrTagSearchCrawler:GetUrlsAsync:WebException {0}", timeoutException);
-                        shellService.ShowError(timeoutException, Resources.TimeoutReached, Resources.Crawling, blog.Name);
-                    }
-                    catch
-                    {
-                    }
-                    finally
-                    {
-                        semaphoreSlim.Release();
-                    }
-                })());
+                trackedTasks.Add(CrawlPageAsync(pageNumber, crawlerTimeOffset));
             }
+
             await Task.WhenAll(trackedTasks);
 
             postQueue.CompleteAdding();
@@ -115,24 +101,48 @@ namespace TumblThree.Applications.Crawler
             UpdateBlogStats();
         }
 
+        private async Task CrawlPageAsync(int pageNumber, long crawlerTimeOffset)
+        {
+            try
+            {
+                long pagination = DateTimeOffset.Now.ToUnixTimeSeconds() - (pageNumber * crawlerTimeOffset);
+                long nextCrawlersPagination =
+                    DateTimeOffset.Now.ToUnixTimeSeconds() - ((pageNumber + 1) * crawlerTimeOffset);
+                await AddUrlsToDownloadListAsync(pagination, nextCrawlersPagination);
+            }
+            catch (TimeoutException timeoutException)
+            {
+                HandleTimeoutException(timeoutException, Resources.Crawling);
+            }
+            catch
+            {
+            }
+            finally
+            {
+                semaphoreSlim.Release();
+            }
+        }
+
         private long GenerateCrawlerTimeOffsets()
         {
             long tagsIntroduced = 1178470824; // Unix time of 05/06/2007 @ 5:00pm (UTC)
             if (!string.IsNullOrEmpty(blog.DownloadFrom))
             {
-                var downloadFrom = DateTime.ParseExact(blog.DownloadFrom, "yyyyMMdd", CultureInfo.InvariantCulture,
+                DateTime downloadFrom = DateTime.ParseExact(blog.DownloadFrom, "yyyyMMdd", CultureInfo.InvariantCulture,
                     DateTimeStyles.None);
                 var dateTimeOffset = new DateTimeOffset(downloadFrom);
                 tagsIntroduced = dateTimeOffset.ToUnixTimeSeconds();
             }
+
             long unixTimeNow = DateTimeOffset.Now.ToUnixTimeSeconds();
             if (!string.IsNullOrEmpty(blog.DownloadTo))
             {
-                var downloadTo = DateTime.ParseExact(blog.DownloadTo, "yyyyMMdd", CultureInfo.InvariantCulture,
+                DateTime downloadTo = DateTime.ParseExact(blog.DownloadTo, "yyyyMMdd", CultureInfo.InvariantCulture,
                     DateTimeStyles.None);
                 var dateTimeOffset = new DateTimeOffset(downloadTo);
                 unixTimeNow = dateTimeOffset.ToUnixTimeSeconds();
             }
+
             long tagsLifeTime = unixTimeNow - tagsIntroduced;
             return tagsLifeTime / shellService.Settings.ConcurrentScans;
         }
@@ -144,10 +154,13 @@ namespace TumblThree.Applications.Crawler
                 string document = await GetTaggedSearchPageAsync(DateTimeOffset.Now.ToUnixTimeSeconds());
                 return !document.Contains("SearchResultsModel");
             }
+            catch (WebException webException) when (webException.Status == WebExceptionStatus.RequestCanceled)
+            {
+                return true;
+            }
             catch (TimeoutException timeoutException)
             {
-                Logger.Error("TumblrTagSearchCrawler:CheckIfLoggedIn:WebException {0}", timeoutException);
-                shellService.ShowError(timeoutException, Resources.TimeoutReached, Resources.Crawling, blog.Name);
+                HandleTimeoutException(timeoutException, Resources.Crawling);
                 return false;
             }
         }
@@ -163,28 +176,19 @@ namespace TumblThree.Applications.Crawler
         private async Task<string> GetTaggedSearchPageAsync(long pagination)
         {
             if (shellService.Settings.LimitConnections)
-            {
                 crawlerService.Timeconstraint.Acquire();
-                return await GetRequestAsync("https://www.tumblr.com/tagged/" + blog.Name + "?before=" + pagination);
-            }
-            return await GetRequestAsync("https://www.tumblr.com/tagged/" + blog.Name + "?before=" + pagination);
 
-            //string url = "https://www.tumblr.com/tagged/" + blog.Name + "?before=" + pagination;
-            //return await ThrottleConnectionAsync(url, GetRequestAsync);
+            return await GetRequestAsync("https://www.tumblr.com/tagged/" + blog.Name + "?before=" + pagination);
         }
 
-        private async Task AddUrlsToDownloadList(long pagination, long nextCrawlersPagination)
+        private async Task AddUrlsToDownloadListAsync(long pagination, long nextCrawlersPagination)
         {
             while (true)
             {
-                if (ct.IsCancellationRequested)
-                {
+                if (CheckIfShouldStop())
                     return;
-                }
-                if (pt.IsPaused)
-                {
-                    pt.WaitWhilePausedWithResponseAsyc().Wait();
-                }
+
+                CheckIfShouldPause();
 
                 string document = await GetTaggedSearchPageAsync(pagination);
                 if (document.Contains("<div class=\"no_posts_found\""))
@@ -204,72 +208,44 @@ namespace TumblThree.Applications.Crawler
                 Interlocked.Increment(ref numberOfPagesCrawled);
                 UpdateProgressQueueInformation(Resources.ProgressGetUrlShort, numberOfPagesCrawled);
                 pagination = ExtractNextPageLink(document);
+
                 if (pagination < nextCrawlersPagination)
                     return;
                 if (!CheckIfWithinTimespan(pagination))
                     return;
-                //if (!string.IsNullOrEmpty(blog.DownloadPages))
-                //    return;
             }
         }
 
         private bool CheckIfWithinTimespan(long pagination)
         {
-            if (!string.IsNullOrEmpty(blog.DownloadFrom))
-            {
-                var downloadFrom = DateTime.ParseExact(blog.DownloadFrom, "yyyyMMdd", CultureInfo.InvariantCulture,
-                    DateTimeStyles.None);
-                var dateTimeOffset = new DateTimeOffset(downloadFrom);
-                if (pagination < dateTimeOffset.ToUnixTimeSeconds())
-                    return false;
-            }
-            return true;
+            if (string.IsNullOrEmpty(blog.DownloadFrom))
+                return true;
+
+            DateTime downloadFrom = DateTime.ParseExact(blog.DownloadFrom, "yyyyMMdd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None);
+            var dateTimeOffset = new DateTimeOffset(downloadFrom);
+            return pagination >= dateTimeOffset.ToUnixTimeSeconds();
         }
 
         private void AddPhotoUrlToDownloadList(string document)
         {
-            if (blog.DownloadPhoto)
-            {
-                var regex = new Regex("src=\"(http[A-Za-z0-9_/:.]*media.tumblr.com[A-Za-z0-9_/:.]*(jpg|png|gif))\"");
-                foreach (Match match in regex.Matches(document))
-                {
-                    string imageUrl = match.Groups[1].Value;
-                    if (imageUrl.Contains("avatar") || imageUrl.Contains("previews"))
-                        continue;
-                    if (blog.SkipGif && imageUrl.EndsWith(".gif"))
-                    {
-                        continue;
-                    }
-                    imageUrl = ResizeTumblrImageUrl(imageUrl);
-                    // TODO: postID
-                    AddToDownloadList(new PhotoPost(imageUrl, Guid.NewGuid().ToString("N")));
-                }
-            }
+            if (!blog.DownloadPhoto)
+                return;
+            AddTumblrPhotoUrl(document);
+
+            if (blog.RegExPhotos)
+                AddGenericPhotoUrl(document);
         }
 
         private void AddVideoUrlToDownloadList(string document)
         {
-            if (blog.DownloadVideo)
-            {
-                var regex = new Regex("src=\"(http[A-Za-z0-9_/:.]*.com/video_file/[A-Za-z0-9_/:.]*)\"");
-                foreach (Match match in regex.Matches(document))
-                {
-                    string videoUrl = match.Groups[1].Value;
-                    // TODO: postId
-                    if (shellService.Settings.VideoSize == 1080)
-                    {
-                        // TODO: postID
-                        AddToDownloadList(new VideoPost(videoUrl.Replace("/480", "") + ".mp4", Guid.NewGuid().ToString("N")));
-                    }
-                    else if (shellService.Settings.VideoSize == 480)
-                    {
-                        // TODO: postID
-                        AddToDownloadList(new VideoPost(
-                            "https://vt.tumblr.com/" + videoUrl.Replace("/480", "").Split('/').Last() + "_480.mp4",
-                            Guid.NewGuid().ToString("N")));
-                    }
-                }
-            }
+            if (!blog.DownloadVideo)
+                return;
+            AddTumblrVideoUrl(document);
+            AddInlineTumblrVideoUrl(document, tumblrParser.GetTumblrVVideoUrlRegex());
+
+            if (blog.RegExVideos)
+                AddGenericVideoUrl(document);
         }
     }
 }

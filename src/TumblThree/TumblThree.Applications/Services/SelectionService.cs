@@ -1,10 +1,9 @@
 ﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel.Composition;
 using System.Waf.Foundation;
 
 using TumblThree.Applications.ObjectModel;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 
 namespace TumblThree.Applications.Services
 {
@@ -19,19 +18,10 @@ namespace TumblThree.Applications.Services
             selectedBlogFiles = new ObservableRangeCollection<IBlog>();
         }
 
-        public IList<IBlog> SelectedBlogFiles
-        {
-            get { return selectedBlogFiles; }
-        }
+        public IList<IBlog> SelectedBlogFiles => selectedBlogFiles;
 
-        public void AddRange(IEnumerable<IBlog> collection)
-        {
-            selectedBlogFiles.AddRange(collection);
-        }
+        public void AddRange(IEnumerable<IBlog> collection) => selectedBlogFiles.AddRange(collection);
 
-        public void RemoveRange(IEnumerable<IBlog> collection)
-        {
-            selectedBlogFiles.RemoveRange(collection);
-        }
+        public void RemoveRange(IEnumerable<IBlog> collection) => selectedBlogFiles.RemoveRange(collection);
     }
 }

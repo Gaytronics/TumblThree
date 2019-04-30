@@ -18,15 +18,9 @@ namespace TumblThree.Presentation.DesignData
 
         private class MockShellView : MockView, IShellView
         {
-            public double VirtualScreenWidth
-            {
-                get { return 0; }
-            }
+            public double VirtualScreenWidth => 0;
 
-            public double VirtualScreenHeight
-            {
-                get { return 0; }
-            }
+            public double VirtualScreenHeight => 0;
 
             public double Left { get; set; }
 
@@ -52,15 +46,9 @@ namespace TumblThree.Presentation.DesignData
             {
             }
 
-            protected virtual void OnClosing(CancelEventArgs e)
-            {
-                Closing?.Invoke(this, e);
-            }
+            protected virtual void OnClosing(CancelEventArgs e) => Closing?.Invoke(this, e);
 
-            protected virtual void OnClosed(EventArgs e)
-            {
-                Closed?.Invoke(this, e);
-            }
+            protected virtual void OnClosed(EventArgs e) => Closed?.Invoke(this, e);
         }
     }
 }

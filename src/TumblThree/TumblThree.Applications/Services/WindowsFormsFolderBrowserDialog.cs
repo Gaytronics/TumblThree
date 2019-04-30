@@ -4,20 +4,21 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Interop;
 
+using IWin32Window = System.Windows.Forms.IWin32Window;
+
 namespace TumblThree.Applications.Services
 {
-
     [Export(typeof(IFolderBrowserDialog))]
     [PartCreationPolicy(CreationPolicy.NonShared)]
     internal class WindowsFormsFolderBrowserDialog : IFolderBrowserDialog
     {
-        private string _description;
-        private string _selectedPath;
+        private string description;
+        private string selectedPath;
 
         [ImportingConstructor]
         public WindowsFormsFolderBrowserDialog()
         {
-            RootFolder = System.Environment.SpecialFolder.MyComputer;
+            RootFolder = Environment.SpecialFolder.MyComputer;
             ShowNewFolderButton = false;
         }
 
@@ -25,25 +26,25 @@ namespace TumblThree.Applications.Services
 
         public string Description
         {
-            get { return _description ?? string.Empty; }
-            set { _description = value; }
+            get => description ?? string.Empty;
+            set => description = value;
         }
 
-        public System.Environment.SpecialFolder RootFolder { get; set; }
+        public Environment.SpecialFolder RootFolder { get; set; }
 
         public string SelectedPath
         {
-            get { return _selectedPath ?? string.Empty; }
-            set { _selectedPath = value; }
+            get => selectedPath ?? string.Empty;
+            set => selectedPath = value;
         }
 
         public bool ShowNewFolderButton { get; set; }
 
         public bool? ShowDialog()
         {
-            using (var dialog = CreateDialog())
+            using (FolderBrowserDialog dialog = CreateDialog())
             {
-                var result = dialog.ShowDialog() == DialogResult.OK;
+                bool result = dialog.ShowDialog() == DialogResult.OK;
                 if (result) SelectedPath = dialog.SelectedPath;
                 return result;
             }
@@ -51,40 +52,37 @@ namespace TumblThree.Applications.Services
 
         public bool? ShowDialog(Window owner)
         {
-            using (var dialog = CreateDialog())
+            using (FolderBrowserDialog dialog = CreateDialog())
             {
-                var result = dialog.ShowDialog(owner.AsWin32Window()) == DialogResult.OK;
+                bool result = dialog.ShowDialog(owner.AsWin32Window()) == DialogResult.OK;
                 if (result) SelectedPath = dialog.SelectedPath;
                 return result;
             }
         }
+
         #endregion
 
         private FolderBrowserDialog CreateDialog()
         {
-            var dialog = new FolderBrowserDialog();
-            dialog.Description = Description;
-            dialog.RootFolder = RootFolder;
-            dialog.SelectedPath = SelectedPath;
-            dialog.ShowNewFolderButton = ShowNewFolderButton;
+            var dialog = new FolderBrowserDialog
+            {
+                Description = Description,
+                RootFolder = RootFolder,
+                SelectedPath = SelectedPath,
+                ShowNewFolderButton = ShowNewFolderButton
+            };
             return dialog;
         }
     }
 
     internal static class WindowExtensions
     {
-        public static System.Windows.Forms.IWin32Window AsWin32Window(this Window window)
-        {
-            return new Wpf32Window(window);
-        }
+        public static IWin32Window AsWin32Window(this Window window) => new Wpf32Window(window);
     }
 
-    internal class Wpf32Window : System.Windows.Forms.IWin32Window
+    internal class Wpf32Window : IWin32Window
     {
-        public Wpf32Window(Window window)
-        {
-            Handle = new WindowInteropHelper(window).Handle;
-        }
+        public Wpf32Window(Window window) => Handle = new WindowInteropHelper(window).Handle;
 
         #region IWin32Window Members
 

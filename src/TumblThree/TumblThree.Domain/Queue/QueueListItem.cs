@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Waf.Foundation;
 
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 
 namespace TumblThree.Domain.Queue
 {
@@ -19,8 +19,8 @@ namespace TumblThree.Domain.Queue
 
         public string Progress
         {
-            get { return progress; }
-            set { SetProperty(ref progress, value); }
+            get => progress;
+            set => SetProperty(ref progress, value);
         }
     }
 }

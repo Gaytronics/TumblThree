@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading;
@@ -16,7 +17,7 @@ using TumblThree.Applications.DataModels.TumblrPosts;
 using TumblThree.Applications.Properties;
 using TumblThree.Applications.Services;
 using TumblThree.Domain;
-using TumblThree.Domain.Models;
+using TumblThree.Domain.Models.Blogs;
 
 namespace TumblThree.Applications.Crawler
 {
@@ -32,13 +33,16 @@ namespace TumblThree.Applications.Crawler
         protected readonly object lockObjectProgress = new object();
         protected readonly ICrawlerService crawlerService;
         protected readonly IShellService shellService;
+        protected readonly PauseToken pt;
         protected readonly CancellationToken ct;
         protected readonly IPostQueue<TumblrPost> postQueue;
         protected ConcurrentBag<TumblrPost> statisticsBag = new ConcurrentBag<TumblrPost>();
         protected List<string> tags = new List<string>();
         protected int numberOfPagesCrawled = 0;
 
-        protected AbstractCrawler(IShellService shellService, ICrawlerService crawlerService, CancellationToken ct, IProgress<DownloadProgress> progress, IWebRequestFactory webRequestFactory, ISharedCookieService cookieService, IPostQueue<TumblrPost> postQueue, IBlog blog)
+        protected AbstractCrawler(IShellService shellService, ICrawlerService crawlerService, CancellationToken ct, PauseToken pt,
+            IProgress<DownloadProgress> progress, IWebRequestFactory webRequestFactory, ISharedCookieService cookieService,
+            IPostQueue<TumblrPost> postQueue, IBlog blog)
         {
             this.shellService = shellService;
             this.crawlerService = crawlerService;
@@ -46,6 +50,7 @@ namespace TumblThree.Applications.Crawler
             this.cookieService = cookieService;
             this.postQueue = postQueue;
             this.blog = blog;
+            this.pt = pt;
             this.ct = ct;
             this.progress = progress;
         }
@@ -64,21 +69,23 @@ namespace TumblThree.Applications.Crawler
             }
             catch (WebException webException)
             {
+                if (webException.Status == WebExceptionStatus.RequestCanceled)
+                    return;
+
                 Logger.Error("AbstractCrawler:IsBlogOnlineAsync:WebException {0}", webException);
                 shellService.ShowError(webException, Resources.BlogIsOffline, blog.Name);
                 blog.Online = false;
             }
             catch (TimeoutException timeoutException)
             {
-                Logger.Error("AbstractCrawler:IsBlogOnlineAsync:WebException {0}", timeoutException);
-                shellService.ShowError(timeoutException, Resources.TimeoutReached, Resources.OnlineChecking, blog.Name);
+                HandleTimeoutException(timeoutException, Resources.OnlineChecking);
                 blog.Online = false;
             }
         }
 
         public void UpdateProgressQueueInformation(string format, params object[] args)
         {
-            var newProgress = new DataModels.DownloadProgress
+            var newProgress = new DownloadProgress
             {
                 Progress = string.Format(CultureInfo.CurrentCulture, format, args)
             };
@@ -88,26 +95,26 @@ namespace TumblThree.Applications.Crawler
         protected async Task<T> ThrottleConnectionAsync<T>(string url, Func<string, Task<T>> method)
         {
             if (shellService.Settings.LimitConnections)
-            {
                 crawlerService.Timeconstraint.Acquire();
-                return await method(url);
-            }
+
             return await method(url);
         }
 
-        protected async Task<string> RequestDataAsync(string url, Dictionary<string, string> headers = null, IEnumerable<string> cookieHosts = null)
+        protected async Task<string> RequestDataAsync(string url, Dictionary<string, string> headers = null,
+            IEnumerable<string> cookieHosts = null)
         {
             var requestRegistration = new CancellationTokenRegistration();
             try
             {
                 HttpWebRequest request = webRequestFactory.CreateGetReqeust(url, "", headers);
-                cookieHosts = cookieHosts ?? new List<String>();
+                cookieHosts = cookieHosts ?? new List<string>();
                 foreach (string cookieHost in cookieHosts)
                 {
                     cookieService.GetUriCookie(request.CookieContainer, new Uri(cookieHost));
                 }
+
                 requestRegistration = ct.Register(() => request.Abort());
-                return await webRequestFactory.ReadReqestToEnd(request);
+                return await webRequestFactory.ReadReqestToEndAsync(request);
             }
             finally
             {
@@ -119,13 +126,13 @@ namespace TumblThree.Applications.Crawler
         {
             try
             {
-                using (MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(json)))
+                using (var ms = new MemoryStream(Encoding.Unicode.GetBytes(json)))
                 {
-                    DataContractJsonSerializer serializer = new DataContractJsonSerializer((typeof(T)));
+                    var serializer = new DataContractJsonSerializer((typeof(T)));
                     return (T)serializer.ReadObject(ms);
                 }
             }
-            catch (System.Runtime.Serialization.SerializationException serializationException)
+            catch (SerializationException serializationException)
             {
                 Logger.Error("AbstractCrawler:ConvertJsonToClass<T>: {0}", "Could not parse data");
                 shellService.ShowError(serializationException, Resources.PostNotParsable, blog.Name);
@@ -140,17 +147,16 @@ namespace TumblThree.Applications.Crawler
             {
                 sb.AppendFormat("{0}={1}&", val.Key, HttpUtility.UrlEncode(val.Value));
             }
+
             sb.Remove(sb.Length - 1, 1); // remove last '&'
             return sb.ToString();
         }
 
         protected virtual IEnumerable<int> GetPageNumbers()
         {
-            if (string.IsNullOrEmpty(blog.DownloadPages))
-            {
-                return Enumerable.Range(0, shellService.Settings.ConcurrentScans);
-            }
-            return RangeToSequence(blog.DownloadPages);
+            return string.IsNullOrEmpty(blog.DownloadPages)
+                ? Enumerable.Range(0, shellService.Settings.ConcurrentScans)
+                : RangeToSequence(blog.DownloadPages);
         }
 
         protected static bool TestRange(int numberToCheck, int bottom, int top)
@@ -168,6 +174,7 @@ namespace TumblThree.Applications.Crawler
                     yield return int.Parse(part);
                     continue;
                 }
+
                 string[] rangeParts = part.Split('-');
                 int start = int.Parse(rangeParts[0]);
                 int end = int.Parse(rangeParts[1]);
@@ -190,14 +197,9 @@ namespace TumblThree.Applications.Crawler
         {
             ulong lastId = blog.LastId;
             if (blog.ForceRescan)
-            {
                 return 0;
-            }
-            if (!string.IsNullOrEmpty(blog.DownloadPages))
-            {
-                return 0;
-            }
-            return lastId;
+            
+            return !string.IsNullOrEmpty(blog.DownloadPages) ? 0 : lastId;
         }
 
         protected void UpdateBlogStats()
@@ -216,17 +218,71 @@ namespace TumblThree.Applications.Crawler
             blog.AudioMetas = statisticsBag.Count(url => url.GetType() == typeof(AudioMetaPost));
         }
 
-        protected int DetermineDuplicates<T>()
-        {
-            return statisticsBag.Where(url => url.GetType() == typeof(T))
+        protected int DetermineDuplicates<T>() => statisticsBag.Where(url => url.GetType() == typeof(T))
                                 .GroupBy(url => url.Url)
                                 .Where(g => g.Count() > 1)
                                 .Sum(g => g.Count() - 1);
+
+        protected void CleanCollectedBlogStatistics() => statisticsBag = null;
+
+        protected bool CheckIfShouldStop() => ct.IsCancellationRequested;
+
+        protected void CheckIfShouldPause()
+        {
+            if (pt.IsPaused)
+                pt.WaitWhilePausedWithResponseAsyc().Wait();
         }
 
-        protected void CleanCollectedBlogStatistics()
+        protected void HandleTimeoutException(TimeoutException timeoutException, string duringAction)
         {
-            statisticsBag = null;
+            Logger.Error("{0}, {1}", string.Format(CultureInfo.CurrentCulture, Resources.TimeoutReached, blog.Name),
+                timeoutException);
+            shellService.ShowError(timeoutException, Resources.TimeoutReached, duringAction, blog.Name);
+        }
+
+        protected bool HandleServiceUnavailableWebException(WebException webException)
+        {
+            var resp = (HttpWebResponse)webException.Response;
+            if (resp.StatusCode != HttpStatusCode.ServiceUnavailable)
+                return false;
+
+            Logger.Error("{0}, {1}", string.Format(CultureInfo.CurrentCulture, Resources.NotLoggedIn, blog.Name), webException);
+            shellService.ShowError(webException, Resources.NotLoggedIn, blog.Name);
+            return true;
+        }
+
+        protected bool HandleNotFoundWebException(WebException webException)
+        {
+            var resp = (HttpWebResponse)webException.Response;
+            if (resp.StatusCode != HttpStatusCode.NotFound)
+                return false;
+
+            Logger.Error("{0}, {1}", string.Format(CultureInfo.CurrentCulture, Resources.BlogIsOffline, blog.Name), webException);
+            shellService.ShowError(webException, Resources.BlogIsOffline, blog.Name);
+            return true;
+        }
+
+        protected bool HandleLimitExceededWebException(WebException webException)
+        {
+            var resp = (HttpWebResponse)webException.Response;
+            if ((int)resp.StatusCode != 429)
+                return false;
+
+            Logger.Error("{0}, {1}", string.Format(CultureInfo.CurrentCulture, Resources.LimitExceeded, blog.Name), webException);
+            shellService.ShowError(webException, Resources.LimitExceeded, blog.Name);
+            return true;
+        }
+
+        protected bool HandleUnauthorizedWebException(WebException webException)
+        {
+            var resp = (HttpWebResponse)webException.Response;
+            if (resp.StatusCode != HttpStatusCode.Unauthorized)
+                return false;
+
+            Logger.Error("{0}, {1}", string.Format(CultureInfo.CurrentCulture, Resources.PasswordProtected, blog.Name),
+                webException);
+            shellService.ShowError(webException, Resources.PasswordProtected, blog.Name);
+            return true;
         }
     }
 }

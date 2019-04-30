@@ -16,35 +16,30 @@ namespace TumblThree.Applications.Crawler
         protected readonly ISharedCookieService cookieService;
 
         [ImportingConstructor]
-        public TumblrBlogDetector(IShellService shellService, ISharedCookieService cookieService, IWebRequestFactory webRequestFactory)
+        public TumblrBlogDetector(IShellService shellService, ISharedCookieService cookieService,
+            IWebRequestFactory webRequestFactory)
         {
             this.webRequestFactory = webRequestFactory;
             this.cookieService = cookieService;
             this.shellService = shellService;
         }
 
-        public async Task<bool> IsTumblrBlog(string url)
+        public async Task<bool> IsTumblrBlogAsync(string url)
         {
             string location = await GetUrlRedirection(url);
-            if (location.Contains("login_required"))
-                return false;
-            return true;
+            return !location.Contains("login_required");
         }
 
-        public async Task<bool> IsHiddenTumblrBlog(string url)
+        public async Task<bool> IsHiddenTumblrBlogAsync(string url)
         {
             string location = await GetUrlRedirection(url);
-            if (location.Contains("login_required") || location.Contains("dashboard/blog/"))
-                return true;
-            return false;
+            return location.Contains("login_required") || location.Contains("dashboard/blog/");
         }
 
-        public async Task<bool> IsPasswordProtectedTumblrBlog(string url)
+        public async Task<bool> IsPasswordProtectedTumblrBlogAsync(string url)
         {
             string location = await GetUrlRedirection(url);
-            if (location.Contains("blog_auth"))
-                return true;
-            return false;
+            return location.Contains("blog_auth");
         }
 
         private async Task<string> GetUrlRedirection(string url)
@@ -56,6 +51,7 @@ namespace TumblThree.Applications.Crawler
             {
                 location = response.ResponseUri.ToString();
             }
+
             return location;
         }
     }

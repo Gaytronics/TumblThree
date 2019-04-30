@@ -1,20 +1,20 @@
 ﻿using System;
 using System.Globalization;
 using System.IO;
-using System.Net;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Timers;
 
 using TumblThree.Applications.Properties;
+
+using Timer = System.Timers.Timer;
 
 namespace TumblThree.Applications
 {
     public class ThrottledStream : Stream
     {
         private readonly Stream parent;
-        readonly System.Timers.Timer resettimer;
-        readonly AutoResetEvent wh = new AutoResetEvent(true);
+        private readonly Timer resettimer;
+        private readonly AutoResetEvent wh = new AutoResetEvent(true);
         private long maxBytesPerSecond;
         private static long processed;
 
@@ -28,8 +28,10 @@ namespace TumblThree.Applications
             MaxBytesPerSecond = maxBytesPerSecond;
             parent = parentStream;
             processed = 0;
-            resettimer = new System.Timers.Timer();
-            resettimer.Interval = 1000;
+            resettimer = new Timer
+            {
+                Interval = 1000
+            };
             resettimer.Elapsed += resettimer_Elapsed;
             resettimer.Start();
         }
@@ -39,7 +41,7 @@ namespace TumblThree.Applications
         /// </summary>
         private long MaxBytesPerSecond
         {
-            get { return maxBytesPerSecond; }
+            get => maxBytesPerSecond;
             set
             {
                 if (value < 1)
@@ -51,30 +53,18 @@ namespace TumblThree.Applications
             }
         }
 
-        public override bool CanRead
-        {
-            get { return parent.CanRead; }
-        }
+        public override bool CanRead => parent.CanRead;
 
-        public override bool CanSeek
-        {
-            get { return parent.CanSeek; }
-        }
+        public override bool CanSeek => parent.CanSeek;
 
-        public override bool CanWrite
-        {
-            get { return parent.CanWrite; }
-        }
+        public override bool CanWrite => parent.CanWrite;
 
-        public override long Length
-        {
-            get { return parent.Length; }
-        }
+        public override long Length => parent.Length;
 
         public override long Position
         {
-            get { return parent.Position; }
-            set { parent.Position = value; }
+            get => parent.Position;
+            set => parent.Position = value;
         }
 
         private void Throttle(long bytes)
@@ -111,10 +101,7 @@ namespace TumblThree.Applications
             base.Dispose(disposing);
         }
 
-        public override void Flush()
-        {
-            parent.Flush();
-        }
+        public override void Flush() => parent.Flush();
 
         public override int Read(byte[] buffer, int offset, int count)
         {
@@ -122,15 +109,9 @@ namespace TumblThree.Applications
             return parent.Read(buffer, offset, count);
         }
 
-        public override long Seek(long offset, SeekOrigin origin)
-        {
-            return parent.Seek(offset, origin);
-        }
+        public override long Seek(long offset, SeekOrigin origin) => parent.Seek(offset, origin);
 
-        public override void SetLength(long value)
-        {
-            parent.SetLength(value);
-        }
+        public override void SetLength(long value) => parent.SetLength(value);
 
         public override void Write(byte[] buffer, int offset, int count)
         {

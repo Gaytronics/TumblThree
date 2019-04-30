@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+
 using TumblThree.Applications.Extensions;
 using TumblThree.Applications.Properties;
 
@@ -25,9 +26,9 @@ namespace TumblThree.Applications.Services
             this.settings = settings;
         }
 
-        private HttpWebRequest CreateStubReqeust(string url, string referer = "", Dictionary<string, string> headers = null)
+        private HttpWebRequest CreateStubRequest(string url, string referer = "", Dictionary<string, string> headers = null)
         {
-            var request = (HttpWebRequest)WebRequest.Create(url);
+            var request = (HttpWebRequest)WebRequest.Create(HttpUtility.UrlDecode(url));
             request.ProtocolVersion = HttpVersion.Version11;
             request.UserAgent = settings.UserAgent;
             request.AllowAutoRedirect = true;
@@ -43,29 +44,30 @@ namespace TumblThree.Applications.Services
 
             request.ReadWriteTimeout = settings.TimeOut * 1000;
             request.Timeout = settings.TimeOut * 1000;
-            request.CookieContainer = new CookieContainer();
-            request.CookieContainer.PerDomainCapacity = 100;
+            request.CookieContainer = new CookieContainer
+            {
+                PerDomainCapacity = 100
+            };
             ServicePointManager.DefaultConnectionLimit = 400;
             request = SetWebRequestProxy(request, settings);
             request.Referer = referer;
             headers = headers ?? new Dictionary<string, string>();
             foreach (KeyValuePair<string, string> header in headers)
-            {
                 request.Headers[header.Key] = header.Value;
-            }
+            
             return request;
         }
 
         public HttpWebRequest CreateGetReqeust(string url, string referer = "", Dictionary<string, string> headers = null)
         {
-            HttpWebRequest request = CreateStubReqeust(url, referer, headers);
+            HttpWebRequest request = CreateStubRequest(url, referer, headers);
             request.Method = "GET";
             return request;
         }
 
         public HttpWebRequest CreateGetXhrReqeust(string url, string referer = "", Dictionary<string, string> headers = null)
         {
-            HttpWebRequest request = CreateStubReqeust(url, referer, headers);
+            HttpWebRequest request = CreateStubRequest(url, referer, headers);
             request.Method = "GET";
             request.ContentType = "application/json";
             request.Headers["X-Requested-With"] = "XMLHttpRequest";
@@ -74,7 +76,7 @@ namespace TumblThree.Applications.Services
 
         public HttpWebRequest CreatePostReqeust(string url, string referer = "", Dictionary<string, string> headers = null)
         {
-            HttpWebRequest request = CreateStubReqeust(url, referer, headers);
+            HttpWebRequest request = CreateStubRequest(url, referer, headers);
             request.Method = "POST";
             request.ContentType = "application/x-www-form-urlencoded";
             return request;
@@ -88,7 +90,7 @@ namespace TumblThree.Applications.Services
             return request;
         }
 
-        public async Task PerformPostReqeust(HttpWebRequest request, Dictionary<string, string> parameters)
+        public async Task PerformPostReqeustAsync(HttpWebRequest request, Dictionary<string, string> parameters)
         {
             string requestBody = UrlEncode(parameters);
             using (Stream postStream = await request.GetRequestStreamAsync().TimeoutAfter(shellService.Settings.TimeOut))
@@ -99,7 +101,7 @@ namespace TumblThree.Applications.Services
             }
         }
 
-        public async Task PerformPostXHRReqeust(HttpWebRequest request, string requestBody)
+        public async Task PerformPostXHRReqeustAsync(HttpWebRequest request, string requestBody)
         {
             using (Stream postStream = await request.GetRequestStreamAsync())
             {
@@ -109,9 +111,9 @@ namespace TumblThree.Applications.Services
             }
         }
 
-        public async Task<bool> RemotePageIsValid(string url)
+        public async Task<bool> RemotePageIsValidAsync(string url)
         {
-            HttpWebRequest request = CreateStubReqeust(url);
+            HttpWebRequest request = CreateStubRequest(url);
             request.Method = "HEAD";
             request.AllowAutoRedirect = false;
             var response = await request.GetResponseAsync() as HttpWebResponse;
@@ -119,11 +121,11 @@ namespace TumblThree.Applications.Services
             return (response.StatusCode == HttpStatusCode.OK);
         }
 
-        public async Task<string> ReadReqestToEnd(HttpWebRequest request)
+        public async Task<string> ReadReqestToEndAsync(HttpWebRequest request)
         {
             using (var response = await request.GetResponseAsync().TimeoutAfter(shellService.Settings.TimeOut) as HttpWebResponse)
             {
-                using (var stream = GetStreamForApiRequest(response.GetResponseStream()))
+                using (Stream stream = GetStreamForApiRequest(response.GetResponseStream()))
                 {
                     using (var buffer = new BufferedStream(stream))
                     {
@@ -138,19 +140,17 @@ namespace TumblThree.Applications.Services
 
         public Stream GetStreamForApiRequest(Stream stream)
         {
-            if (!settings.LimitScanBandwidth || settings.Bandwidth == 0)
-                return stream;
-            return new ThrottledStream(stream, (settings.Bandwidth / settings.ConcurrentConnections) * 1024);
-
+            return !settings.LimitScanBandwidth || settings.Bandwidth == 0
+                ? stream
+                : new ThrottledStream(stream, (settings.Bandwidth / settings.ConcurrentConnections) * 1024);
         }
 
         public string UrlEncode(IDictionary<string, string> parameters)
         {
             var sb = new StringBuilder();
             foreach (KeyValuePair<string, string> val in parameters)
-            {
                 sb.AppendFormat("{0}={1}&", val.Key, HttpUtility.UrlEncode(val.Value));
-            }
+            
             sb.Remove(sb.Length - 1, 1); // remove last '&'
             return sb.ToString();
         }
@@ -158,13 +158,12 @@ namespace TumblThree.Applications.Services
         private static HttpWebRequest SetWebRequestProxy(HttpWebRequest request, AppSettings settings)
         {
             if (!string.IsNullOrEmpty(settings.ProxyHost) && !string.IsNullOrEmpty(settings.ProxyPort))
-            {
                 request.Proxy = new WebProxy(settings.ProxyHost, int.Parse(settings.ProxyPort));
-            }
+            
+
             if (!string.IsNullOrEmpty(settings.ProxyUsername) && !string.IsNullOrEmpty(settings.ProxyPassword))
-            {
                 request.Proxy.Credentials = new NetworkCredential(settings.ProxyUsername, settings.ProxyPassword);
-            }
+            
             return request;
         }
     }

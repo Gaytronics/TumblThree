@@ -25,27 +25,18 @@ namespace TumblThree.Applications.ViewModels
 
         public string OAuthCallbackUrl
         {
-            get { return oauthCallbackUrl; }
-            set { SetProperty(ref oauthCallbackUrl, value); }
+            get => oauthCallbackUrl;
+            set => SetProperty(ref oauthCallbackUrl, value);
         }
 
-        public void ShowDialog(object owner)
-        {
-            ViewCore.ShowDialog(owner);
-        }
+        public void ShowDialog(object owner) => ViewCore.ShowDialog(owner);
 
         private void ViewClosed(object sender, EventArgs e)
         {
         }
 
-        public void AddUrl(string url)
-        {
-            ViewCore.AddUrl(url);
-        }
+        public void AddUrl(string url) => ViewCore.AddUrl(url);
 
-        public string GetUrl()
-        {
-            return ViewCore.GetUrl();
-        }
+        public string GetUrl() => ViewCore.GetUrl();
     }
 }

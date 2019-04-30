@@ -1,5 +1,9 @@
 # TumblThree - A Tumblr Blog Backup Application
 
+[![Join the chat at https://gitter.im/TumblThree/community](https://badges.gitter.im/TumblThree/community.svg)](https://gitter.im/TumblThree/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) ![Github Releases](https://img.shields.io/github/downloads/johanneszab/TumblThree/total.svg?style=plastic) ![Github Stars](https://img.shields.io/github/stars/johanneszab/TumblThree.svg?style=plastic) ![Latest Github release date](https://img.shields.io/github/release-date/johanneszab/TumblThree.svg)
+
+**To facilitate TumblThrees development within a larger community, TumblThree is moving to its new home at a github organization. For new releases, issues and community/developer chat at gitter, check out its new home: [TumblThreeApp](https://github.com/TumblThreeApp/TumblThree)**
+
 TumblThree is the code rewrite of [TumblTwo](https://github.com/johanneszab/TumblTwo), a free and open source Tumblr blog backup application, using C# with WPF and the MVVM pattern. It uses the [Win Application Framework (WAF)](https://github.com/jbe2277/waf). It downloads photo, video, audio and text posts from a given tumblr blog.
 
 _Read this in other languages: [简体中文](https://github.com/Emphasia/TumblThree-zh)._
@@ -29,7 +33,7 @@ _Read this in other languages: [简体中文](https://github.com/Emphasia/TumblT
 * Download of photo, video (only tumblr.com hosted), text, audio, quote, conversation, link and question posts.
 * Download meta information for photo, video and audio posts.
 * Downloads inlined photos and videos (e.g. photos embedded in question&answer posts).
-* Download of \_raw image files (original/higher resolution pictures).
+* ~~Download of \_raw image files (original/higher resolution pictures)~~ [(Tumblr raws are inaccessible as of August 10, 2018)](https://github.com/johanneszab/TumblThree/issues/261).
 * Support for downloading Imgur, Gfycat, Webmshare, Mixtape, Lolisafe, Uguu, Catbox and SafeMoe linked files in tumblr posts.
 * Download of safe mode/NSFW blogs.
 * Allows to download only original content of the blog and skip reblogged posts.
@@ -42,19 +46,19 @@ _Read this in other languages: [简体中文](https://github.com/Emphasia/TumblT
 ### Liked/by backup/download:
 
 * A downloader for downloading "liked by" photos and videos instead of a tumblr blog (e.g. https://www.tumblr.com/liked/by/wallpaperfx/) (login required).
-* Download of \_raw image files (original/higher resolution pictures).
+* ~~Download of \_raw image files (original/higher resolution pictures)~~ [(Tumblr raws are inaccessible as of August 10, 2018)](https://github.com/johanneszab/TumblThree/issues/261).
 * Allows to download posts in a defined time span. 
 
 ### Tumblr search backup/download:
 
 * A downloader for downloading photos and videos from the tumblr search (e.g. http://www.tumblr.com/search/my+keywords).
-* Download of \_raw image files (original/higher resolution pictures). 
+* ~~Download of \_raw image files (original/higher resolution pictures)~~ [(Tumblr raws are inaccessible as of August 10, 2018)](https://github.com/johanneszab/TumblThree/issues/261). 
 * Can download only specific blog pages instead of the whole blog.
 
 ### Tumblr tag search backup/download:
 
 * A downloader for downloading photos and videos from the tumblr tag search (e.g. http://www.tumblr.com/tagged/my+keywords) (login required).
-* Download of \_raw image files (original/higher resolution pictures). 
+* ~~Download of \_raw image files (original/higher resolution pictures)~~ [(Tumblr raws are inaccessible as of August 10, 2018)](https://github.com/johanneszab/TumblThree/issues/261). 
 * Allows to download posts in a defined time span.
 
 ## Download:

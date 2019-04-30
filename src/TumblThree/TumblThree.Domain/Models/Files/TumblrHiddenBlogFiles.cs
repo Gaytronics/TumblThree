@@ -1,7 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Runtime.Serialization;
+﻿using System.Runtime.Serialization;
 
-namespace TumblThree.Domain.Models
+namespace TumblThree.Domain.Models.Files
 {
     [DataContract]
     public class TumblrHiddenBlogFiles : Files

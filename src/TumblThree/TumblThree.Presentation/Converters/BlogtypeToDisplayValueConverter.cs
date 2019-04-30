@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.Windows.Data;
 
@@ -12,7 +11,7 @@ namespace TumblThree.Presentation.Converters
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            BlogTypes type = (BlogTypes)value;
+            var type = (BlogTypes) value;
             switch (type)
             {
                 case BlogTypes.tumblr:
@@ -36,9 +35,7 @@ namespace TumblThree.Presentation.Converters
             }
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
             throw new NotImplementedException();
-        }
     }
 }
